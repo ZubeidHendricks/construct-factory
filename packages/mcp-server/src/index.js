@@ -153,6 +153,76 @@ const TOOLS = [
     },
   },
   {
+    name: "list_level",
+    description:
+      "Inspect a cloned project: list its layouts, object types, and the instances (with uid + x/y) on a given layout. Pass a layout name to list its instances.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        layout: { type: "string", description: "If given, list instances on this layout" },
+      },
+      required: ["dir"],
+    },
+  },
+  {
+    name: "move_instance",
+    description: "Reposition an existing instance (by uid) on a layout. Use list_level to find uids.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        layout: { type: "string" },
+        uid: { type: "number" },
+        x: { type: "number" },
+        y: { type: "number" },
+      },
+      required: ["dir", "layout", "uid"],
+    },
+  },
+  {
+    name: "duplicate_instance",
+    description:
+      "Duplicate an existing instance (by uid) at a new position — e.g. add more coins/platforms by cloning a verified one. Reuses the source instance's exact JSON.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        layout: { type: "string" },
+        uid: { type: "number" },
+        x: { type: "number" },
+        y: { type: "number" },
+      },
+      required: ["dir", "layout", "uid", "x", "y"],
+    },
+  },
+  {
+    name: "list_assets",
+    description: "List asset files (default: images/) in a project, so you know what art can be swapped.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        prefix: { type: "string", description: "Path prefix filter, default \"images/\"" },
+      },
+      required: ["dir"],
+    },
+  },
+  {
+    name: "replace_image",
+    description:
+      "Swap a project image (e.g. images/player-walk-000.png) for an external PNG file on disk. Best when dimensions match the original frame.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        rel: { type: "string", description: "Project-relative asset path, e.g. images/coin-rotate-000.png" },
+        file: { type: "string", description: "Absolute path to the replacement file" },
+      },
+      required: ["dir", "rel", "file"],
+    },
+  },
+  {
     name: "validate_project",
     description: "Structurally validate a game project folder (manifest <-> files consistency).",
     inputSchema: {
@@ -218,6 +288,34 @@ const handlers = {
     const inst = game.placeInstance({ layout, object, x, y, width, height, properties });
     await game.save();
     return { placed: object, layout, uid: inst.uid, dir };
+  },
+  async list_level({ dir, layout }) {
+    const game = await Game.open(dir);
+    const out = { layouts: game.listLayouts(), objectTypes: game.listObjectTypes() };
+    if (layout) out.instances = game.listInstances(layout);
+    return out;
+  },
+  async move_instance({ dir, layout, uid, x, y }) {
+    const game = await Game.open(dir);
+    const inst = game.moveInstance({ layout, uid, x, y });
+    await game.save();
+    return { moved: uid, type: inst.type, x: inst.world.x, y: inst.world.y, dir };
+  },
+  async duplicate_instance({ dir, layout, uid, x, y }) {
+    const game = await Game.open(dir);
+    const copy = game.duplicateInstance({ layout, uid, x, y });
+    await game.save();
+    return { duplicated: uid, newUid: copy.uid, type: copy.type, x: copy.world.x, y: copy.world.y, dir };
+  },
+  async list_assets({ dir, prefix }) {
+    const game = await Game.open(dir);
+    return { assets: game.listAssets(prefix ?? "images/") };
+  },
+  async replace_image({ dir, rel, file }) {
+    const game = await Game.open(dir);
+    game.replaceAsset({ rel, file });
+    await game.save();
+    return { replaced: rel, from: file, dir };
   },
   async validate_project({ dir }) {
     const game = await Game.open(dir);

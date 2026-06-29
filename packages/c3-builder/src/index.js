@@ -110,6 +110,86 @@ export class Game {
     return inst;
   }
 
+  // --- Level editing on an opened (cloned) project --------------------------
+  // These operate on real instance JSON already in the model, so they work
+  // reliably on cloned reference projects without relying on schema.js shapes.
+
+  _layout(name) {
+    const l = this.model.layouts[name];
+    if (!l) throw new Error(`unknown layout: ${name}`);
+    return l;
+  }
+
+  /** Names of the layouts in this project. */
+  listLayouts() {
+    return Object.keys(this.model.layouts);
+  }
+
+  /** Names of the object types in this project. */
+  listObjectTypes() {
+    return Object.keys(this.model.objectTypes);
+  }
+
+  /** Every placed instance across all layers of a layout. */
+  listInstances(layout) {
+    const out = [];
+    for (const layer of this._layout(layout).layers ?? [])
+      for (const inst of layer.instances ?? [])
+        out.push({ uid: inst.uid, type: inst.type, layer: layer.name, x: inst.world?.x, y: inst.world?.y });
+    return out;
+  }
+
+  _findInstance(layout, uid) {
+    for (const layer of this._layout(layout).layers ?? []) {
+      const inst = (layer.instances ?? []).find((i) => i.uid === uid);
+      if (inst) return { layer, inst };
+    }
+    throw new Error(`no instance uid=${uid} on layout "${layout}"`);
+  }
+
+  _nextUid(layout) {
+    let max = -1;
+    for (const layer of this._layout(layout).layers ?? [])
+      for (const i of layer.instances ?? []) if (typeof i.uid === "number") max = Math.max(max, i.uid);
+    return max + 1;
+  }
+
+  /** Reposition an existing instance. */
+  moveInstance({ layout, uid, x, y }) {
+    const { inst } = this._findInstance(layout, uid);
+    if (x != null) inst.world.x = x;
+    if (y != null) inst.world.y = y;
+    return inst;
+  }
+
+  /** Duplicate an existing instance (verified JSON) at a new position. */
+  duplicateInstance({ layout, uid, x, y }) {
+    const { layer, inst } = this._findInstance(layout, uid);
+    const copy = JSON.parse(JSON.stringify(inst));
+    copy.uid = this._nextUid(layout);
+    if (copy.sid != null) copy.sid = this.ids.sid();
+    if (x != null) copy.world.x = x;
+    if (y != null) copy.world.y = y;
+    layer.instances.push(copy);
+    return copy;
+  }
+
+  /** Relative paths of asset files in the project (default: images/). */
+  listAssets(prefix = "images/") {
+    return (this.model.assets ?? []).map((a) => a.rel).filter((r) => r.startsWith(prefix));
+  }
+
+  /** Swap a project asset file (e.g. "images/player-walk-000.png") for an
+   *  external file on disk; the new bytes are written on save(). */
+  replaceAsset({ rel, file }) {
+    if (!this.model.assets?.some((a) => a.rel === rel))
+      throw new Error(`no asset "${rel}" in project (run listAssets)`);
+    this.model.assets = this.model.assets.map((a) =>
+      a.rel === rel ? { rel, src: path.resolve(file) } : a
+    );
+    return rel;
+  }
+
   validate() {
     return c3.validateModel(this.model);
   }
