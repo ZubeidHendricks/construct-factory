@@ -1,0 +1,18 @@
+{
+  "name": "construct-factory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Factory for generating Construct 3 games via an MCP server over the .c3proj project-folder format",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "mcp": "node packages/mcp-server/src/index.js",
+    "verify": "node verify/validate.js",
+    "smoke": "node verify/smoke.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

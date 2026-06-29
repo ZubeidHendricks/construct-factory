@@ -1,0 +1,9 @@
+{
+	"name": "Hello",
+	"plugin-id": "Text",
+	"sid": 100000000005349,
+	"isGlobal": false,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": []
+}

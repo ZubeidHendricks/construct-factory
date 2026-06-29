@@ -1,0 +1,7 @@
+{
+  "name": "@construct-factory/c3-format",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "Read/write/validate the Construct 3 project-folder (.c3proj) format"
+}

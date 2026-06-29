@@ -1,0 +1,6 @@
+node_modules/
+*.log
+.DS_Store
+# generated game output is kept; build/export artifacts are not
+games/**/exports/
+*.c3p

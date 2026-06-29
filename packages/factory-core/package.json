@@ -1,0 +1,10 @@
+{
+  "name": "@construct-factory/factory-core",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "Shared genre templates and scaffolds for the Construct game factory",
+  "dependencies": {
+    "@construct-factory/c3-builder": "*"
+  }
+}

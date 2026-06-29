@@ -1,0 +1,10 @@
+{
+  "name": "@construct-factory/c3-builder",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.js",
+  "description": "High-level authoring API for Construct 3 projects",
+  "dependencies": {
+    "@construct-factory/c3-format": "*"
+  }
+}

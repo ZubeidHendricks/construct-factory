@@ -1,0 +1,10 @@
+{
+  "name": "@construct-factory/editor-bridge",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/server.js",
+  "description": "WebSocket bridge between the MCP server and a Construct 3 editor browser extension (auto-reload + preview screenshots)",
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
