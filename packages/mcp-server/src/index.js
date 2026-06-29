@@ -68,19 +68,33 @@ const TOOLS = [
   {
     name: "add_sprite",
     description:
-      "Add a Sprite object type to an existing game project folder, optionally with behaviors (e.g. Platform, Bullet, solid, Sin). NOTE: sprite IMAGE linking is not yet schema-verified; the object is created without image data.",
+      "Add a Sprite object type with one animation. Real PNG files are emitted per frame: pass `images` (paths, one per frame) for real art, or omit them to get a solid-color placeholder. Optionally attach behaviors (Platform, Bullet, solid, Sin).",
     inputSchema: {
       type: "object",
       properties: {
         dir: { type: "string", description: "Path to the game project folder" },
         name: { type: "string" },
-        width: { type: "number" },
-        height: { type: "number" },
+        width: { type: "number", description: "Frame width in px (default 32)" },
+        height: { type: "number", description: "Frame height in px (default 32)" },
         behaviors: {
           type: "array",
           items: { type: "string" },
           description: "Behavior keys to attach, e.g. [\"Platform\", \"solid\"]",
         },
+        images: {
+          type: "array",
+          items: { type: "string" },
+          description: "Absolute PNG paths, one per animation frame. Omit for a placeholder.",
+        },
+        color: {
+          type: "array",
+          items: { type: "number" },
+          description: "Placeholder RGBA 0-255, e.g. [120,200,120,255], when no images given.",
+        },
+        animName: { type: "string", description: "Animation name (default \"Default\")" },
+        speed: { type: "number", description: "Animation speed (default 8)" },
+        isLooping: { type: "boolean" },
+        originY: { type: "number", description: "0.5 = centre, 1 = feet (platformers)" },
       },
       required: ["dir"],
     },
@@ -254,14 +268,15 @@ const handlers = {
     await game.save();
     return { added: ot.name, plugin: ot["plugin-id"], dir };
   },
-  async add_sprite({ dir, name, width, height, behaviors }) {
+  async add_sprite({ dir, name, width, height, behaviors, images, color, animName, speed, isLooping, originY }) {
     const game = await Game.open(dir);
-    const ot = game.addSprite({ name, width, height, behaviors });
+    const ot = game.addSprite({ name, width, height, behaviors, images, color, animName, speed, isLooping, originY });
     await game.save();
     return {
       added: ot.name,
       plugin: ot["plugin-id"],
-      behaviors: (ot.behaviorTypes ?? []).map((b) => b["behavior-id"] ?? b.name),
+      frames: ot.animations.items[0].frames.length,
+      behaviors: (ot.behaviorTypes ?? []).map((b) => b.behaviorId ?? b.name),
       dir,
     };
   },

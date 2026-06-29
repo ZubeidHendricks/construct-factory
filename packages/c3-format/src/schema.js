@@ -1,10 +1,11 @@
-// Construct 3 project-folder schema, reverse-engineered from the KiwiStory
-// reference project (reference/kiwi, savedWithRelease 48703, projectFormatVersion 1).
+// Construct 3 project-folder schema, reverse-engineered from real reference
+// projects (reference/kiwi, plus the Kenney Pixel Platformer and Cave Bridge
+// projects), savedWithRelease 48703, projectFormatVersion 1.
 //
-// Field shapes here match real Construct output. The one area still marked TODO
-// is Sprite IMAGE handling (the imageSpriteId <-> image-file mapping), which needs
-// its own verification pass — see objectTypeSprite() below. Everything the
-// "blank" (no-image) project needs is verified.
+// Field shapes here match real Construct output. Sprite frames + animations and
+// their imageSpriteId<->image-file linking are now verified against the Kenney
+// and Cave Bridge sprites: addSprite() (c3-builder) emits real PNGs per frame
+// via solidPng()/file copy and links them through frame().imageSpriteId.
 
 // ---------------------------------------------------------------------------
 // IDs. Construct uses large unique numeric `sid`s everywhere and incrementing
@@ -254,10 +255,10 @@ export function objectTypeText({ name, ids }) {
   };
 }
 
-// ⚠️ Sprites require image files plus an imageSpriteId mapping that we have NOT
-// yet verified end-to-end (how Construct resolves ids on import). Structure
-// matches the reference; image generation/linking is the next verification pass.
-export function objectTypeSprite({ name, ids, width = 32, height = 32, imageSpriteId = 0 }) {
+// Sprite object type. `frames` is an array of frame() objects (each already
+// linked to an emitted image via imageSpriteId). Shape verified against the
+// Kenney Pixel Platformer and Cave Bridge reference projects.
+export function objectTypeSprite({ name, ids, frames, animName = "Default", speed = 8, isLooping = false }) {
   return {
     name,
     "plugin-id": "Sprite",
@@ -270,14 +271,14 @@ export function objectTypeSprite({ name, ids, width = 32, height = 32, imageSpri
     animations: {
       items: [
         {
-          frames: [frame({ width, height, imageSpriteId })],
+          frames,
           sid: ids.sid(),
-          name: "Default",
-          isLooping: false,
+          name: animName,
+          isLooping,
           isPingPong: false,
           repeatCount: 1,
           repeatTo: 0,
-          speed: 8,
+          speed,
         },
       ],
       subfolders: [],
@@ -285,20 +286,21 @@ export function objectTypeSprite({ name, ids, width = 32, height = 32, imageSpri
   };
 }
 
-export function frame({ width, height, imageSpriteId }) {
+// A single animation frame. Defaults to a full-quad collision polygon (safe for
+// rectangular sprites). originY defaults to centre; platformer feet use 1.
+export function frame({ width, height, imageSpriteId, originX = 0.5, originY = 0.5 }) {
   return {
     width,
     height,
-    originX: 0.5,
-    originY: 0.5,
+    originX,
+    originY,
     originalSource: "",
     exportFormat: "lossless",
     exportQuality: 0.8,
-    fileType: "image/png",
     imageSpriteId,
+    collisionPoly: { points: [0, 0, 1, 0, 1, 1, 0, 1] },
     useCollisionPoly: true,
     duration: 1,
-    tag: "",
   };
 }
 

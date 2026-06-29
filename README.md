@@ -32,9 +32,36 @@ generateGame({ rootDir: "games", name: "Cave Boy Adventure", template: "cave-boy
 
 The format layer round-trips these real projects losslessly (read → write to a new folder is byte-identical, verified in `verify/`).
 
-## ⚠️ Status: builder schema is still PROVISIONAL
+## Building from scratch
 
-The hand-written field shapes in `packages/c3-format/src/schema.js` (used by the *builder* templates) are reverse-engineered and incomplete. Clone templates don't depend on them — they copy ground-truth projects verbatim — so they're the reliable path today. Improving `schema.js` against the projects in `reference/` is how the builder path catches up.
+The `c3-builder` API also assembles projects without a reference. Sprites emit
+**real PNG files** per animation frame (pass `images`, or get a generated solid
+placeholder) and link them through `imageSpriteId`, so built-from-scratch
+sprites actually render:
+
+```js
+const g = Game.create({ rootDir: "games", name: "Scratch Platformer" });
+g.addLayout({ name: "Level1", makeFirst: true });
+g.addSprite({ name: "Player", width: 24, height: 24, originY: 1,
+  animName: "Walk", isLooping: true, behaviors: ["Platform", "solid"],
+  images: ["player-walk-000.png", "player-walk-001.png"] });
+g.placeInstance({ layout: "Level1", object: "Player", x: 100, y: 200 });
+await g.save();
+```
+
+### Editing a cloned project
+
+`list_level`, `move_instance`, `duplicate_instance`, `list_assets` and
+`replace_image` customize a cloned reference game by editing its real instance
+JSON and swapping art — no schema guesswork.
+
+## ⚠️ Status
+
+The hand-written field shapes in `packages/c3-format/src/schema.js` are
+reverse-engineered; sprites, animations, behaviors and instances are verified
+against the `reference/` projects, but exotic features (effects, families,
+timelines, particles) are only guaranteed via the **clone** path, which copies
+ground truth verbatim. When in doubt, clone.
 
 ## Quick start
 

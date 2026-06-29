@@ -7,6 +7,7 @@ import * as schema from "./schema.js";
 
 export * as schema from "./schema.js";
 export { unpackC3p, packC3p } from "./c3p.js";
+export { solidPng } from "./png.js";
 
 const SUBDIRS = ["layouts", "eventSheets", "objectTypes", "families", "images"];
 
@@ -118,13 +119,18 @@ export async function writeProject(model) {
     await writeJson(path.join(dir, "objectTypes", `${name}.json`), body);
   for (const [name, body] of Object.entries(model.families ?? {}))
     await writeJson(path.join(dir, "families", `${name}.json`), body);
-  // Copy preserved assets verbatim. Skip when the source already lives at the
-  // destination path (in-place save) to avoid copying a file onto itself.
-  for (const { rel, src } of model.assets ?? []) {
-    const dest = path.join(dir, ...rel.split("/"));
-    if (path.resolve(src) === path.resolve(dest)) continue;
+  // Write preserved assets. An asset is either inline bytes ({rel, data}) or a
+  // source path ({rel, src}); for a source path, skip when it already lives at
+  // the destination (in-place save) to avoid copying a file onto itself.
+  for (const asset of model.assets ?? []) {
+    const dest = path.join(dir, ...asset.rel.split("/"));
     await fs.mkdir(path.dirname(dest), { recursive: true });
-    await fs.copyFile(src, dest);
+    if (asset.data != null) {
+      await fs.writeFile(dest, asset.data);
+    } else if (asset.src) {
+      if (path.resolve(asset.src) === path.resolve(dest)) continue;
+      await fs.copyFile(asset.src, dest);
+    }
   }
   return dir;
 }

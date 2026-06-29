@@ -4,9 +4,12 @@
 // hand-edit raw JSON.
 
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import * as c3 from "@construct-factory/c3-format";
 
 const { schema } = c3;
+
+const pad3 = (n) => String(n).padStart(3, "0");
 
 // Deterministic short uniqueId (no Date.now/Math.random): base36 of a seed.
 const projectUid = (seed) => (seed * 2654435761 % 1e13).toString(36);
@@ -73,11 +76,37 @@ export class Game {
     return ot;
   }
 
-  /** Add a Sprite object. NOTE: image linking is not yet verified (see schema). */
-  addSprite({ name, width, height, behaviors = [] } = {}) {
+  /**
+   * Add a Sprite object with one animation. Real PNG image files are emitted
+   * for every frame (provided via `images`, or generated solid-color
+   * placeholders), so the sprite actually renders in Construct.
+   * @param {object} o
+   * @param {string} [o.name]
+   * @param {number} [o.width=32]
+   * @param {number} [o.height=32]
+   * @param {string[]} [o.behaviors]   behavior keys, e.g. ["Platform","solid"]
+   * @param {string[]} [o.images]      paths to PNG files, one per frame
+   * @param {number[]} [o.color]       placeholder RGBA when no images given
+   * @param {string} [o.animName="Default"]
+   * @param {number} [o.speed=8]
+   * @param {boolean} [o.isLooping]
+   * @param {number} [o.originY=0.5]   1 = feet origin (platformers)
+   */
+  addSprite({ name, width = 32, height = 32, behaviors = [], images = [], color, animName = "Default", speed = 8, isLooping = false, originY = 0.5 } = {}) {
     name = name ?? `Sprite${this.model.manifest.objectTypes.items.length + 1}`;
     this.useAddon("Sprite");
-    const ot = schema.objectTypeSprite({ name, ids: this.ids, width, height });
+
+    const sources = images.length ? images : [null]; // at least one frame
+    const animSlug = slug(animName) || "default";
+    const frames = sources.map((imgPath, i) => {
+      const rel = `images/${slug(name)}-${animSlug}-${pad3(i)}.png`;
+      const data = imgPath ? readFileSync(imgPath) : c3.solidPng(width, height, color);
+      this.model.assets = this.model.assets ?? [];
+      this.model.assets.push({ rel, data });
+      return schema.frame({ width, height, imageSpriteId: this.ids.sid(), originY });
+    });
+
+    const ot = schema.objectTypeSprite({ name, ids: this.ids, frames, animName, speed, isLooping });
     for (const b of behaviors) {
       this.useAddon(b);
       ot.behaviorTypes.push(schema.behaviorType({ behaviorId: b, name: b, ids: this.ids }));
