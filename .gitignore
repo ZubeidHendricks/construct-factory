@@ -4,3 +4,6 @@ node_modules/
 # generated game output is kept; build/export artifacts are not
 games/**/exports/
 *.c3p
+
+# local-only reference project (kept out of the repo to limit size)
+reference/pop/

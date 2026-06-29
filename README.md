@@ -17,11 +17,24 @@ reference/       Real Construct 3 project folders used to reverse-engineer the s
 verify/          Validation harness (does the output parse / round-trip cleanly?)
 ```
 
-## ⚠️ Status: schema is PROVISIONAL
+## Templates
 
-The exact `.c3proj` JSON schema is undocumented and version-specific. The field shapes in `packages/c3-format/src/schema.js` are a **best-effort starting point** and are almost certainly incomplete.
+Two kinds:
 
-**Before relying on generated projects:** drop a real reference project into `reference/` (in Construct 3: *Menu → Project → Save as → save as a project folder*), then we correct `c3-format` against ground truth. Everything else is built so that fixing the schema is a one-file change.
+- **Builder templates** (`blank`, `hello-text`) — assembled from scratch via `c3-builder` against the reverse-engineered `schema.js`.
+- **Clone templates** — stamped out by a **full-fidelity folder clone** of a verified real project in `reference/`, so every byte (images, animations, particles, effects, timelines, event logic) is preserved and guaranteed to open in Construct:
+  - `kenney-platformer` — Kenney's CC0 tile platformer (Player + Platform behavior, Tilemap, coins, enemies).
+  - `cave-boy` — Scirra's *Cave Bridge* template (animated player, parallax vegetation, particles, area lighting, Tween/Timeline).
+
+```js
+generateGame({ rootDir: "games", name: "Cave Boy Adventure", template: "cave-boy" });
+```
+
+The format layer round-trips these real projects losslessly (read → write to a new folder is byte-identical, verified in `verify/`).
+
+## ⚠️ Status: builder schema is still PROVISIONAL
+
+The hand-written field shapes in `packages/c3-format/src/schema.js` (used by the *builder* templates) are reverse-engineered and incomplete. Clone templates don't depend on them — they copy ground-truth projects verbatim — so they're the reliable path today. Improving `schema.js` against the projects in `reference/` is how the builder path catches up.
 
 ## Quick start
 
