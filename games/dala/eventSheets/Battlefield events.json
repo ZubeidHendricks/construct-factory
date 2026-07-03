@@ -1,0 +1,512 @@
+{
+	"name": "Battlefield events",
+	"events": [
+		{
+			"eventType": "variable",
+			"name": "Kills",
+			"type": "number",
+			"initialValue": "0",
+			"comment": "",
+			"isStatic": false,
+			"isConstant": false,
+			"sid": 100000000052144
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Setup",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000053481,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-start-of-layout",
+							"objectClass": "System",
+							"sid": 100000000054818
+						}
+					],
+					"actions": [
+						{
+							"id": "set-instvar-value",
+							"objectClass": "Ranger",
+							"sid": 100000000056155,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "100"
+							}
+						},
+						{
+							"id": "set-instvar-value",
+							"objectClass": "Raider",
+							"sid": 100000000057492,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "80"
+							}
+						},
+						{
+							"id": "set-instvar-value",
+							"objectClass": "Fort",
+							"sid": 100000000058829,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "400"
+							}
+						},
+						{
+							"id": "set-text",
+							"objectClass": "HUD",
+							"sid": 100000000060166,
+							"parameters": {
+								"text": "\"DALA — left-click: select ranger · right-click: move · destroy the fort\""
+							}
+						}
+					],
+					"sid": 100000000061503
+				}
+			]
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Selection and Orders",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000062840,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-object-clicked",
+							"objectClass": "Mouse",
+							"sid": 100000000064177,
+							"parameters": {
+								"mouse-button": "left",
+								"click-type": "clicked",
+								"object-clicked": "Ranger"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "set-boolean-instvar",
+							"objectClass": "Ranger",
+							"sid": 100000000065514,
+							"parameters": {
+								"instance-variable": "selected",
+								"value": "true"
+							}
+						}
+					],
+					"sid": 100000000066851
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-click",
+							"objectClass": "Mouse",
+							"sid": 100000000068188,
+							"parameters": {
+								"mouse-button": "right",
+								"click-type": "clicked"
+							}
+						},
+						{
+							"id": "is-boolean-instance-variable-set",
+							"objectClass": "Ranger",
+							"sid": 100000000069525,
+							"parameters": {
+								"instance-variable": "selected"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "find-path",
+							"objectClass": "Ranger",
+							"sid": 100000000070862,
+							"behaviorType": "Pathfinding",
+							"parameters": {
+								"x": "Mouse.X",
+								"y": "Mouse.Y"
+							}
+						}
+					],
+					"sid": 100000000072199
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-path-found",
+							"objectClass": "Ranger",
+							"sid": 100000000073536,
+							"behaviorType": "Pathfinding"
+						}
+					],
+					"actions": [
+						{
+							"id": "move-along-path",
+							"objectClass": "Ranger",
+							"sid": 100000000074873,
+							"behaviorType": "Pathfinding"
+						}
+					],
+					"sid": 100000000076210
+				}
+			]
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Combat",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000077547,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "every-x-seconds",
+							"objectClass": "System",
+							"sid": 100000000078884,
+							"parameters": {
+								"interval-seconds": "0.5"
+							}
+						},
+						{
+							"id": "has-los-to-object",
+							"objectClass": "Ranger",
+							"sid": 100000000080221,
+							"behaviorType": "LOS",
+							"parameters": {
+								"object": "Raider",
+								"image-point": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "add-to-instvar",
+							"objectClass": "Raider",
+							"sid": 100000000081558,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "-6"
+							}
+						}
+					],
+					"sid": 100000000082895
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "every-x-seconds",
+							"objectClass": "System",
+							"sid": 100000000084232,
+							"parameters": {
+								"interval-seconds": "0.5"
+							}
+						},
+						{
+							"id": "has-los-to-object",
+							"objectClass": "Ranger",
+							"sid": 100000000085569,
+							"behaviorType": "LOS",
+							"parameters": {
+								"object": "Fort",
+								"image-point": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "add-to-instvar",
+							"objectClass": "Fort",
+							"sid": 100000000086906,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "-6"
+							}
+						}
+					],
+					"sid": 100000000088243
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "every-x-seconds",
+							"objectClass": "System",
+							"sid": 100000000089580,
+							"parameters": {
+								"interval-seconds": "0.6"
+							}
+						},
+						{
+							"id": "has-los-to-object",
+							"objectClass": "Raider",
+							"sid": 100000000090917,
+							"behaviorType": "LOS",
+							"parameters": {
+								"object": "Ranger",
+								"image-point": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "add-to-instvar",
+							"objectClass": "Ranger",
+							"sid": 100000000092254,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "-5"
+							}
+						}
+					],
+					"sid": 100000000093591
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "every-x-seconds",
+							"objectClass": "System",
+							"sid": 100000000094928,
+							"parameters": {
+								"interval-seconds": "0.8"
+							}
+						},
+						{
+							"id": "has-los-to-object",
+							"objectClass": "Fort",
+							"sid": 100000000096265,
+							"behaviorType": "LOS",
+							"parameters": {
+								"object": "Ranger",
+								"image-point": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "add-to-instvar",
+							"objectClass": "Ranger",
+							"sid": 100000000097602,
+							"parameters": {
+								"instance-variable": "hp",
+								"value": "-4"
+							}
+						}
+					],
+					"sid": 100000000098939
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "compare-instance-variable",
+							"objectClass": "Raider",
+							"sid": 100000000100276,
+							"parameters": {
+								"instance-variable": "hp",
+								"comparison": 3,
+								"value": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "destroy",
+							"objectClass": "Raider",
+							"sid": 100000000101613
+						},
+						{
+							"id": "add-to-eventvar",
+							"objectClass": "System",
+							"sid": 100000000102950,
+							"parameters": {
+								"variable": "Kills",
+								"value": "1"
+							}
+						},
+						{
+							"id": "set-text",
+							"objectClass": "HUD",
+							"sid": 100000000104287,
+							"parameters": {
+								"text": "\"Raiders down: \" & Kills"
+							}
+						}
+					],
+					"sid": 100000000105624
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "compare-instance-variable",
+							"objectClass": "Ranger",
+							"sid": 100000000106961,
+							"parameters": {
+								"instance-variable": "hp",
+								"comparison": 3,
+								"value": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "destroy",
+							"objectClass": "Ranger",
+							"sid": 100000000108298
+						}
+					],
+					"sid": 100000000109635
+				}
+			]
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Enemy AI",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000110972,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "every-x-seconds",
+							"objectClass": "System",
+							"sid": 100000000112309,
+							"parameters": {
+								"interval-seconds": "3"
+							}
+						},
+						{
+							"id": "pick-nearestfurthest",
+							"objectClass": "Ranger",
+							"sid": 100000000113646,
+							"parameters": {
+								"which": "nearest",
+								"x": "Raider.X",
+								"y": "Raider.Y"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "find-path",
+							"objectClass": "Raider",
+							"sid": 100000000114983,
+							"behaviorType": "Pathfinding",
+							"parameters": {
+								"x": "Ranger.X",
+								"y": "Ranger.Y"
+							}
+						}
+					],
+					"sid": 100000000116320
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-path-found",
+							"objectClass": "Raider",
+							"sid": 100000000117657,
+							"behaviorType": "Pathfinding"
+						}
+					],
+					"actions": [
+						{
+							"id": "move-along-path",
+							"objectClass": "Raider",
+							"sid": 100000000118994,
+							"behaviorType": "Pathfinding"
+						}
+					],
+					"sid": 100000000120331
+				}
+			]
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Win and Lose",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000121668,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "compare-instance-variable",
+							"objectClass": "Fort",
+							"sid": 100000000123005,
+							"parameters": {
+								"instance-variable": "hp",
+								"comparison": 3,
+								"value": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "destroy",
+							"objectClass": "Fort",
+							"sid": 100000000124342
+						},
+						{
+							"id": "set-text",
+							"objectClass": "HUD",
+							"sid": 100000000125679,
+							"parameters": {
+								"text": "\"VICTORY — DALA prevails. Raiders down: \" & Kills"
+							}
+						}
+					],
+					"sid": 100000000127016
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "compare-two-values",
+							"objectClass": "System",
+							"sid": 100000000128353,
+							"parameters": {
+								"first-value": "Ranger.Count",
+								"comparison": 0,
+								"second-value": "0"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "set-text",
+							"objectClass": "HUD",
+							"sid": 100000000129690,
+							"parameters": {
+								"text": "\"DEFEAT — your rangers have fallen\""
+							}
+						}
+					],
+					"sid": 100000000131027
+				}
+			]
+		}
+	],
+	"sid": 100000000001338
+}

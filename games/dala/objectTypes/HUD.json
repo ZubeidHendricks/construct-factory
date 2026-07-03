@@ -1,0 +1,9 @@
+{
+	"name": "HUD",
+	"plugin-id": "Text",
+	"sid": 100000000040111,
+	"isGlobal": false,
+	"instanceVariables": [],
+	"behaviorTypes": [],
+	"effectTypes": []
+}
