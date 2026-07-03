@@ -135,17 +135,67 @@ export class Game {
     return fam;
   }
 
-  /** Append a conditions->actions block to an event sheet (by name). */
-  addEvent({ eventSheet, conditions = [], actions = [] }) {
-    const es = this.model.eventSheets[eventSheet];
-    if (!es) throw new Error(`unknown event sheet: ${eventSheet}`);
+  _sheet(name) {
+    const es = this.model.eventSheets[name];
+    if (!es) throw new Error(`unknown event sheet: ${name}`);
+    return es;
+  }
+
+  /**
+   * Append a conditions->actions block to an event sheet (by name).
+   * Pass `group` (a group title) to append inside that group instead of at
+   * sheet top level.
+   */
+  addEvent({ eventSheet, conditions = [], actions = [], group }) {
+    const es = this._sheet(eventSheet);
     const blk = schema.block({
       ids: this.ids,
       conditions: conditions.map((c) => schema.condition({ ...c, ids: this.ids })),
       actions: actions.map((a) => schema.action({ ...a, ids: this.ids })),
     });
-    es.events.push(blk);
+    let target = es.events;
+    if (group) {
+      const grp = es.events.find((e) => e.eventType === "group" && e.title === group);
+      if (!grp) throw new Error(`no group "${group}" in sheet "${eventSheet}"`);
+      target = grp.children;
+    }
+    target.push(blk);
     return blk;
+  }
+
+  /** Add a titled event group (organizes and can toggle a set of events). */
+  addEventGroup({ eventSheet, title, isActiveOnStart = true }) {
+    const es = this._sheet(eventSheet);
+    const grp = schema.eventGroup({ title, ids: this.ids, isActiveOnStart });
+    es.events.push(grp);
+    return grp;
+  }
+
+  /** Add a sheet-level variable (number|string|boolean). */
+  addEventVariable({ eventSheet, name, type = "number", initialValue = "0", isConstant = false, isStatic = false }) {
+    const es = this._sheet(eventSheet);
+    const v = schema.eventVariable({ name, ids: this.ids, type, initialValue, isConstant, isStatic });
+    es.events.push(v);
+    return v;
+  }
+
+  /** Add a Construct function definition to an event sheet. */
+  addFunction({ eventSheet, name, returnType = "none", parameters = [], isAsync = false }) {
+    const es = this._sheet(eventSheet);
+    const fn = schema.functionBlock({ name, ids: this.ids, returnType, parameters, isAsync });
+    es.events.push(fn);
+    return fn;
+  }
+
+  /** Add an instance variable to an existing object type. */
+  addInstanceVariable({ object, name, type = "number", desc = "" }) {
+    const ot = this.model.objectTypes[object];
+    if (!ot) throw new Error(`unknown object type: ${object}`);
+    if (ot.instanceVariables.some((v) => v.name === name))
+      throw new Error(`object "${object}" already has instance variable "${name}"`);
+    const v = schema.instanceVariable({ name, ids: this.ids, type, desc });
+    ot.instanceVariables.push(v);
+    return v;
   }
 
   /** Place an object instance onto a layout's first layer. */

@@ -262,6 +262,58 @@ export function eventSheetFile({ name, ids }) {
 
 export const includeEvent = (sheet) => ({ eventType: "include", includeSheet: sheet });
 
+// An event group: titled, collapsible container of child events. Shape verified
+// against a commercial RTS sheet (285 real groups).
+export function eventGroup({ title, ids, description = "", isActiveOnStart = true }) {
+  return {
+    eventType: "group",
+    disabled: false,
+    title,
+    description,
+    isActiveOnStart,
+    sid: ids.sid(),
+    children: [],
+  };
+}
+
+// An event-sheet variable (global to the sheet). initialValue is stored as a string.
+export function eventVariable({ name, ids, type = "number", initialValue = "0", comment = "", isStatic = false, isConstant = false }) {
+  return {
+    eventType: "variable",
+    name,
+    type,
+    initialValue: String(initialValue),
+    comment,
+    isStatic,
+    isConstant,
+    sid: ids.sid(),
+  };
+}
+
+// A Construct function definition. Callers invoke it via the System "call-function"
+// style ACEs; conditions stay empty, logic goes in actions/children.
+export function functionBlock({ name, ids, returnType = "none", parameters = [], isAsync = false }) {
+  return {
+    functionName: name,
+    functionDescription: "",
+    functionCategory: "",
+    functionReturnType: returnType,
+    functionCopyPicked: false,
+    functionIsAsync: isAsync,
+    functionParameters: parameters,
+    eventType: "function-block",
+    conditions: [],
+    actions: [],
+    sid: ids.sid(),
+  };
+}
+
+// An instance variable on an object type (referenced from events via
+// compare-instance-variable / set-instvar-value / ...).
+export function instanceVariable({ name, ids, type = "number", desc = "" }) {
+  return { name, type, desc, show: true, sid: ids.sid() };
+}
+
 export function block({ ids, conditions = [], actions = [] }) {
   return { eventType: "block", conditions, actions, sid: ids.sid() };
 }

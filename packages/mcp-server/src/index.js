@@ -114,12 +114,13 @@ const TOOLS = [
   {
     name: "add_event",
     description:
-      "Append a conditions->actions block to an event sheet. Conditions/actions are arrays of { id, objectClass, parameters }, where objectClass defaults to \"System\". Example action: { id: \"set-text\", objectClass: \"Text\", parameters: { text: \"\\\"Hello\\\"\" } }.",
+      "Append a conditions->actions block to an event sheet. Conditions/actions are arrays of { id, objectClass, parameters, behaviorType?, isInverted? }, where objectClass defaults to \"System\". Example action: { id: \"set-vector-y\", objectClass: \"Player\", behaviorType: \"Platform\", parameters: { \"vector-y\": \"-200\" } }. Pass `group` to place the event inside an existing event group.",
     inputSchema: {
       type: "object",
       properties: {
         dir: { type: "string" },
         eventSheet: { type: "string", description: "Name of the target event sheet" },
+        group: { type: "string", description: "Optional: title of an existing group to add into" },
         conditions: {
           type: "array",
           items: {
@@ -164,6 +165,67 @@ const TOOLS = [
         properties: { type: "object", description: "Optional instance properties" },
       },
       required: ["dir", "layout", "object"],
+    },
+  },
+  {
+    name: "add_event_group",
+    description:
+      "Add a titled event group to an event sheet. Groups organize related events (e.g. \"Player movement\", \"Enemy AI\") and can be toggled on/off at runtime. Use add_event with the `group` param to add events inside it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        eventSheet: { type: "string" },
+        title: { type: "string" },
+        isActiveOnStart: { type: "boolean" },
+      },
+      required: ["dir", "eventSheet", "title"],
+    },
+  },
+  {
+    name: "add_variable",
+    description: "Add a sheet-level variable (number, string, or boolean) to an event sheet.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        eventSheet: { type: "string" },
+        name: { type: "string" },
+        type: { type: "string", enum: ["number", "string", "boolean"] },
+        initialValue: { type: "string" },
+        isConstant: { type: "boolean" },
+      },
+      required: ["dir", "eventSheet", "name"],
+    },
+  },
+  {
+    name: "add_function",
+    description: "Add a Construct function definition to an event sheet (callable from events).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        eventSheet: { type: "string" },
+        name: { type: "string" },
+        returnType: { type: "string", enum: ["none", "number", "string", "any"] },
+      },
+      required: ["dir", "eventSheet", "name"],
+    },
+  },
+  {
+    name: "add_instance_variable",
+    description:
+      "Add an instance variable to an object type (e.g. health, team, targetX). Events can then compare/set it per-instance — the standard way to give units state.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        object: { type: "string", description: "Object type name" },
+        name: { type: "string" },
+        type: { type: "string", enum: ["number", "string", "boolean"] },
+        desc: { type: "string" },
+      },
+      required: ["dir", "object", "name"],
     },
   },
   {
@@ -309,9 +371,9 @@ const handlers = {
     await game.save();
     return { added: es.name, dir };
   },
-  async add_event({ dir, eventSheet, conditions, actions }) {
+  async add_event({ dir, eventSheet, conditions, actions, group }) {
     const game = await Game.open(dir);
-    const blk = game.addEvent({ eventSheet, conditions, actions });
+    const blk = game.addEvent({ eventSheet, conditions, actions, group });
     await game.save();
     return {
       eventSheet,
@@ -326,6 +388,30 @@ const handlers = {
     const inst = game.placeInstance({ layout, object, x, y, width, height, properties });
     await game.save();
     return { placed: object, layout, uid: inst.uid, dir };
+  },
+  async add_event_group({ dir, eventSheet, title, isActiveOnStart }) {
+    const game = await Game.open(dir);
+    const grp = game.addEventGroup({ eventSheet, title, isActiveOnStart });
+    await game.save();
+    return { added: grp.title, eventSheet, dir };
+  },
+  async add_variable({ dir, eventSheet, name, type, initialValue, isConstant }) {
+    const game = await Game.open(dir);
+    const v = game.addEventVariable({ eventSheet, name, type, initialValue, isConstant });
+    await game.save();
+    return { added: v.name, type: v.type, initialValue: v.initialValue, eventSheet, dir };
+  },
+  async add_function({ dir, eventSheet, name, returnType }) {
+    const game = await Game.open(dir);
+    const fn = game.addFunction({ eventSheet, name, returnType });
+    await game.save();
+    return { added: fn.functionName, returnType: fn.functionReturnType, eventSheet, dir };
+  },
+  async add_instance_variable({ dir, object, name, type, desc }) {
+    const game = await Game.open(dir);
+    const v = game.addInstanceVariable({ object, name, type, desc });
+    await game.save();
+    return { added: v.name, type: v.type, object, dir };
   },
   async add_family({ dir, name, members, behaviors }) {
     const game = await Game.open(dir);
