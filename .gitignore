@@ -9,3 +9,6 @@ games/**/exports/
 reference/pop/
 # purchased source (license forbids publishing) — never commit
 reference/nuke-them-all/
+
+# DALA incorporates licensed RTS code portions — local only, never publish
+games/dala/
