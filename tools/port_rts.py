@@ -22,24 +22,45 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "reference/nuke-them-all"
 C3P = Path("/Users/zubeidhendricks/Documents/screenshots/source/NukeGameFull077_ready.c3p")
 DEST = ROOT / "games/dala"
-SHEET = "Battlefield events"
-LAYOUT = "Battlefield"
+SHEET = "District Six events"
+LAYOUT = "District Six"
 
 # ---- phase configuration ----------------------------------------------------
 GROUPS = [
+    # phase 1: selection & orders
     "Group Selector Mouse box",
     "TroopsFreindlySelection",
+    # phase 2: production + territory
+    "ROBOT FACTORIES v4 Rio",
+    "RALLY Point Robot factories",
+    "FLAG CAPTURING SYSTEM V3 (FIXED By RIO) REWORKED",
 ]
-FUNCTIONS = ["createCursorTarget", "LETSGO", "READY"]
+FUNCTIONS = [
+    "createCursorTarget", "LETSGO", "READY",
+    "FaceForFactories", "RobotFManufactured", "RobotFactoryCaptured",
+    "createFriendlyTroopMinion", "countOurRobots", "RallyVoice",
+    "FlagCapturedLady", "FlagLostLady",
+]
 OBJECT_TYPES = [  # subfolder-qualified paths under SRC/objectTypes
     "OurUnits/TroopsFreindly", "OurUnits/spr_hero_tank", "ZExtras/FirebotFLY",
     "OurUnits/LightTank", "OurUnits/GruntTroopsFreindly", "MapElements/Flag",
     "System/SelectionBox", "System/Cursor_All", "System/CursorTarget",
     "System/LOS_lineofsight", "ZExtras/Wayline",
     "Texts/TextTotalSelected", "Texts/ID", "Texts/MyORDERTextTank", "Texts/MyOrderRobotText",
+    # phase 2
+    "OurUnits/Firebot" if (SRC / "objectTypes/OurUnits/Firebot.json").exists() else "ZExtras/Firebot",
+    "OurUnits/LazerBotTroopsFreindly", "OurUnits/RocketBotTroopsFreindly",
+    "EnemyUnits/HeadBot", "EnemyUnits/TroopsEnemy",
+    "ZExtras/MechBASE", "ZExtras/OurMech",
+    "MapElements/RobotFactory", "System/ProgressBar", "System/ProgressBarBackground",
+    "ZExtras/CommanderSign", "ZExtras/FactoryDotMap1", "ZExtras/FlagCapture",
+    "Texts/OurFortRemainingClock", "Texts/OurTowersAmount", "OurUnits/OurFort",
+    # pulled in by factory/flag group internals
+    "EnemyUnits/ShieldBot", "MapElements/TankFactory", "MapElements/VehicleFactory",
+    "System/TimeRemainsSec", "ZExtras/UnitFrame", "System/UnitSelectorSandbox",
 ]
 PLUGINS = ["Keyboard", "Gamepad", "Browser", "Audio"]  # single-globals to port
-FAMILIES = ["OurUnits", "OurTanksFamily", "OurRobotFamily"]
+FAMILIES = ["OurUnits", "OurTanksFamily", "OurRobotFamily", "Enemies", "Factories"]
 UI_LAYER = "UI"
 BUILTIN = {"System", "Functions"}
 
@@ -129,6 +150,9 @@ def main():
     for f in FAMILIES:
         if f in fam_names:
             continue
+        if not (SRC / f"families/{f}.json").exists():
+            print(f"  WARN family {f} not found in source; skipped")
+            continue
         fam = jload(SRC / f"families/{f}.json")
         orig = fam.get("members", [])
         fam["members"] = [m for m in orig if m in ported_types]
@@ -139,28 +163,61 @@ def main():
         fam_names.add(f)
         print(f"[family] {f}: {len(orig)} -> {len(fam['members'])} members {fam['members']}")
 
-    # ---- 4. functions + groups from the source sheet ---------------------------
-    src_sheet = jload(SRC / "eventSheets/Sh_Level1.json")
-    got_fns, got_groups = {}, {}
+    # ---- 4. functions + groups from the source sheets ---------------------------
+    # index every function definition across ALL source sheets
+    all_fn_defs, got_groups = {}, {}
 
-    def collect(events):
+    def index_defs(events):
         for e in events:
-            if e.get("eventType") == "function-block" and e.get("functionName") in FUNCTIONS:
-                got_fns[e["functionName"]] = e
+            if e.get("eventType") == "function-block":
+                all_fn_defs.setdefault(e.get("functionName"), e)
             if e.get("eventType") == "group" and e.get("title") in GROUPS:
                 got_groups[e["title"]] = e
             if e.get("children"):
-                collect(e["children"])
-    collect(src_sheet["events"])
+                index_defs(e["children"])
+    for sp in (SRC / "eventSheets").glob("*.json"):
+        if sp.name.endswith(".uistate.json"):
+            continue
+        try:
+            index_defs(jload(sp)["events"])
+        except Exception:
+            pass
 
-    for fn in FUNCTIONS:
-        if fn not in got_fns:
-            sys.exit(f"FATAL: function {fn} not found")
-        sheet["events"].append(got_fns[fn])
-        print(f"[function] {fn}")
     for gtitle in GROUPS:
         if gtitle not in got_groups:
             sys.exit(f"FATAL: group {gtitle} not found")
+
+    # function closure: start from configured FUNCTIONS + everything the ported
+    # groups call, then chase callFunction refs inside ported defs to fixpoint
+    def calls_in(events, acc):
+        for e in events:
+            for part in ("conditions", "actions"):
+                for x in e.get(part, []):
+                    if x.get("callFunction"):
+                        acc.add(x["callFunction"])
+            if e.get("children"):
+                calls_in(e["children"], acc)
+        return acc
+
+    needed = set(FUNCTIONS)
+    for grp in got_groups.values():
+        calls_in([grp], needed)
+    ported_fns, queue = {}, sorted(needed)
+    while queue:
+        fn = queue.pop()
+        if fn in ported_fns:
+            continue
+        if fn not in all_fn_defs:
+            sys.exit(f"FATAL: function {fn} called by ported code but no definition found")
+        ported_fns[fn] = all_fn_defs[fn]
+        for extra in sorted(calls_in([all_fn_defs[fn]], set())):
+            if extra not in ported_fns:
+                queue.append(extra)
+
+    for fn in sorted(ported_fns):
+        sheet["events"].append(ported_fns[fn])
+        print(f"[function] {fn}")
+    for gtitle in GROUPS:
         sheet["events"].append(got_groups[gtitle])
         print(f"[group] {gtitle} ({len(got_groups[gtitle].get('children', []))} events)")
 
@@ -174,7 +231,7 @@ def main():
                         refs.add(x["objectClass"])
             if e.get("children"):
                 scan(e["children"])
-    for e in list(got_fns.values()) + list(got_groups.values()):
+    for e in list(ported_fns.values()) + list(got_groups.values()):
         scan([e])
     for r in sorted(refs):
         if r not in ported_types and r not in fam_names and r not in BUILTIN:
@@ -182,6 +239,30 @@ def main():
     if missing:
         sys.exit(f"FATAL: ported events reference missing objects: {sorted(missing)}")
     print(f"[check] {len(refs)} objectClass refs all resolve")
+
+    # layer closure: any layer name quoted in ported events must exist
+    layer_refs = set()
+    def scan_layers(events):
+        for e in events:
+            for part in ("conditions", "actions"):
+                for x in e.get(part, []):
+                    if not isinstance(x, dict):
+                        continue
+                    params = x.get("parameters")
+                    lv = params.get("layer") if isinstance(params, dict) else None
+                    if isinstance(lv, str) and lv.startswith('"') and lv.endswith('"'):
+                        layer_refs.add(lv.strip('"'))
+            if e.get("children"):
+                scan_layers(e["children"])
+    for e in list(ported_fns.values()) + list(got_groups.values()):
+        scan_layers([e])
+    for lname in sorted(layer_refs):
+        if not any(l["name"] == lname for l in layout["layers"]):
+            base = json.loads(json.dumps(layout["layers"][0]))
+            base.update({"name": lname, "instances": [], "sid": 900000000010000 + len(layout["layers"]),
+                         "parallaxX": 0, "parallaxY": 0})
+            layout["layers"].append(base)
+            print(f"[layer] {lname} added (referenced by ported events)")
 
     # ---- 6. sounds referenced by ported events ----------------------------------
     wanted = set()
@@ -193,7 +274,7 @@ def main():
                     wanted.update(re.findall(r'[\\\\"]+([a-z0-9_]+)[\\\\"]+', expr))
             if e.get("children"):
                 scan_sounds(e["children"])
-    for e in list(got_fns.values()) + list(got_groups.values()):
+    for e in list(ported_fns.values()) + list(got_groups.values()):
         scan_sounds([e])
     snd_entries = {n.split("\\")[-1].rsplit(".", 1)[0].lower(): n for n in names if n.lower().startswith("sounds\\")}
     (DEST / "sounds").mkdir(exist_ok=True)
@@ -260,7 +341,13 @@ def main():
     # ---- 8. deploy ported units on the battlefield ------------------------------
     UNITS = [("TroopsFreindly", 300, 560), ("TroopsFreindly", 340, 600), ("TroopsFreindly", 300, 640),
              ("GruntTroopsFreindly", 400, 560), ("GruntTroopsFreindly", 440, 600),
-             ("LightTank", 380, 660), ("spr_hero_tank", 470, 640)]
+             ("LightTank", 380, 660), ("spr_hero_tank", 470, 640),
+             # phase 2: your base, production, and territory
+             ("OurFort", 120, 420),
+             ("RobotFactory", 250, 380),
+             ("Flag", 640, 200), ("Flag", 640, 560),
+             # enemy presence for capture/AI systems
+             ("TroopsEnemy", 950, 340), ("TroopsEnemy", 1000, 380), ("HeadBot", 1040, 320)]
     src_unit_inst = {}
     for lp in sorted((SRC / "layouts").glob("*.json")):
         if lp.name.endswith(".uistate.json"):

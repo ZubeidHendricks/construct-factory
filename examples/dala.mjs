@@ -18,7 +18,7 @@ const TILE = 32;
 const COLS = 40, ROWS = 23; // 1280 x 736
 
 const g = Game.create({ rootDir: path.join(ROOT, "games"), name: "DALA", viewportWidth: 1280, viewportHeight: 736 });
-g.addLayout({ name: "Battlefield", width: COLS * TILE, height: ROWS * TILE, makeFirst: true });
+g.addLayout({ name: "District Six", width: COLS * TILE, height: ROWS * TILE, makeFirst: true });
 g.addGlobalPlugin("Mouse");
 
 // --- terrain: sand ground (walkable) + rock obstacles (solid) ---------------
@@ -30,7 +30,7 @@ g.addTilemap({ name: "Rocks", tileWidth: TILE, tileHeight: TILE,
 // ground: sand with scattered darker patches (deterministic scatter)
 const ground = Array.from({ length: ROWS }, (_, r) =>
   Array.from({ length: COLS }, (_, c) => ((r * 7 + c * 13) % 11 === 0 ? 2 : 1)));
-g.placeTilemap({ layout: "Battlefield", object: "Ground", grid: ground, tileWidth: TILE, tileHeight: TILE });
+g.placeTilemap({ layout: "District Six", object: "Ground", grid: ground, tileWidth: TILE, tileHeight: TILE });
 
 // rocks: clusters that make pathfinding matter
 const rocks = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
@@ -40,7 +40,7 @@ cluster(10, 18, [[0,0],[0,1],[0,2],[1,1],[1,2],[2,2],[2,3]]);
 cluster(16, 10, [[0,0],[1,0],[1,1],[2,0]]);
 cluster(6, 27, [[0,0],[0,1],[1,0],[1,1],[2,0]]);
 cluster(15, 30, [[0,0],[0,1],[1,1],[1,2],[2,2]]);
-g.placeTilemap({ layout: "Battlefield", object: "Rocks", grid: rocks, tileWidth: TILE, tileHeight: TILE });
+g.placeTilemap({ layout: "District Six", object: "Rocks", grid: rocks, tileWidth: TILE, tileHeight: TILE });
 
 // --- forces ------------------------------------------------------------------
 // Instance behavior property sets (shapes verified against a real RTS project)
@@ -68,17 +68,17 @@ g.addInstanceVariable({ object: "Fort", name: "hp", type: "number" });
 g.addText({ name: "HUD" });
 
 // placement — rangers bottom-left, raiders guard the fort top-right
-const rangerAt = (x, y) => g.placeInstance({ layout: "Battlefield", object: "Ranger", x, y,
+const rangerAt = (x, y) => g.placeInstance({ layout: "District Six", object: "Ranger", x, y,
   behaviors: { Pathfinding: pathfinding(140), LOS: los(280) } });
-const raiderAt = (x, y) => g.placeInstance({ layout: "Battlefield", object: "Raider", x, y,
+const raiderAt = (x, y) => g.placeInstance({ layout: "District Six", object: "Raider", x, y,
   behaviors: { Pathfinding: pathfinding(110), LOS: los(230) } });
 rangerAt(140, 560); rangerAt(200, 600); rangerAt(140, 640);
 raiderAt(980, 200); raiderAt(1060, 260); raiderAt(920, 280);
-g.placeInstance({ layout: "Battlefield", object: "Fort", x: 1100, y: 140, behaviors: { LOS: los(260) } });
-g.placeInstance({ layout: "Battlefield", object: "HUD", x: 10, y: 8, width: 620, height: 26 });
+g.placeInstance({ layout: "District Six", object: "Fort", x: 1100, y: 140, behaviors: { LOS: los(260) } });
+g.placeInstance({ layout: "District Six", object: "HUD", x: 10, y: 8, width: 620, height: 26 });
 
 // --- logic ---------------------------------------------------------------------
-const ES = "Battlefield events";
+const ES = "District Six events";
 g.addEventVariable({ eventSheet: ES, name: "Kills", initialValue: "0" });
 
 g.addEventGroup({ eventSheet: ES, title: "Setup" });
@@ -88,7 +88,7 @@ g.addEvent({ eventSheet: ES, group: "Setup",
     { id: "set-instvar-value", objectClass: "Ranger", parameters: { "instance-variable": "hp", value: "100" } },
     { id: "set-instvar-value", objectClass: "Raider", parameters: { "instance-variable": "hp", value: "80" } },
     { id: "set-instvar-value", objectClass: "Fort", parameters: { "instance-variable": "hp", value: "400" } },
-    { id: "set-text", objectClass: "HUD", parameters: { text: "\"DALA — left-click: select ranger · right-click: move · destroy the fort\"" } },
+    { id: "set-text", objectClass: "HUD", parameters: { text: "\"DALA — District Six Showdown · drag-select your crew · right-click: move out · take the flags\"" } },
   ] });
 
 g.addEventGroup({ eventSheet: ES, title: "Selection and Orders" });
@@ -161,11 +161,11 @@ g.addEvent({ eventSheet: ES, group: "Win and Lose",
   conditions: [{ id: "compare-instance-variable", objectClass: "Fort", parameters: { "instance-variable": "hp", comparison: 3, value: "0" } }],
   actions: [
     { id: "destroy", objectClass: "Fort" },
-    { id: "set-text", objectClass: "HUD", parameters: { text: "\"VICTORY — DALA prevails. Raiders down: \" & Kills" } },
+    { id: "set-text", objectClass: "HUD", parameters: { text: "\"VICTORY — District Six stands tall. Raiders down: \" & Kills" } },
   ] });
 g.addEvent({ eventSheet: ES, group: "Win and Lose",
   conditions: [{ id: "compare-two-values", parameters: { "first-value": "Ranger.Count", comparison: 0, "second-value": "0" } }],
-  actions: [{ id: "set-text", objectClass: "HUD", parameters: { text: "\"DEFEAT — your rangers have fallen\"" } }] });
+  actions: [{ id: "set-text", objectClass: "HUD", parameters: { text: "\"DEFEAT — vasbyt, ons probeer weer\"" } }] });
 
 // --- save + pack -----------------------------------------------------------------
 const dir = await g.save();
