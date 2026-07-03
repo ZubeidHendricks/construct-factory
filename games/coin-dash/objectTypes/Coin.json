@@ -1,8 +1,9 @@
 {
 	"name": "Coin",
 	"plugin-id": "Sprite",
-	"sid": 164789035924261,
+	"sid": 100000000022730,
 	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
 	"instanceVariables": [],
 	"behaviorTypes": [],
 	"effectTypes": [],
@@ -18,17 +19,17 @@
 						"originalSource": "",
 						"exportFormat": "lossless",
 						"exportQuality": 0.8,
-						"imageSpriteId": 2929475,
+						"imageSpriteId": 100000000020056,
 						"collisionPoly": {
 							"points": [
-								0.1111111111111111,
-								0.1111111111111111,
-								0.8888888888888888,
-								0.1111111111111111,
-								0.8888888888888888,
-								0.8888888888888888,
-								0.1111111111111111,
-								0.8888888888888888
+								0,
+								0,
+								1,
+								0,
+								1,
+								1,
+								0,
+								1
 							]
 						},
 						"useCollisionPoly": true,
@@ -42,24 +43,24 @@
 						"originalSource": "",
 						"exportFormat": "lossless",
 						"exportQuality": 0.8,
-						"imageSpriteId": 3555754,
+						"imageSpriteId": 100000000021393,
 						"collisionPoly": {
 							"points": [
-								0.1111111111111111,
-								0.1111111111111111,
-								0.8888888888888888,
-								0.1111111111111111,
-								0.8888888888888888,
-								0.8888888888888888,
-								0.1111111111111111,
-								0.8888888888888888
+								0,
+								0,
+								1,
+								0,
+								1,
+								1,
+								0,
+								1
 							]
 						},
 						"useCollisionPoly": true,
 						"duration": 1
 					}
 				],
-				"sid": 848180195075254,
+				"sid": 100000000024067,
 				"name": "Rotate",
 				"isLooping": true,
 				"isPingPong": false,

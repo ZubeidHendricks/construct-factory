@@ -1,0 +1,178 @@
+{
+	"name": "Level 1 events",
+	"events": [
+		{
+			"eventType": "variable",
+			"name": "Score",
+			"type": "number",
+			"initialValue": "0",
+			"comment": "",
+			"isStatic": false,
+			"isConstant": false,
+			"sid": 100000000049470
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Player",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000050807,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-key-pressed",
+							"objectClass": "Keyboard",
+							"sid": 100000000052144,
+							"parameters": {
+								"key": 37
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "set-mirrored",
+							"objectClass": "Player",
+							"sid": 100000000053481,
+							"parameters": {
+								"state": "mirrored"
+							}
+						}
+					],
+					"sid": 100000000054818
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-key-pressed",
+							"objectClass": "Keyboard",
+							"sid": 100000000056155,
+							"parameters": {
+								"key": 39
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "set-mirrored",
+							"objectClass": "Player",
+							"sid": 100000000057492,
+							"parameters": {
+								"state": "not-mirrored"
+							}
+						}
+					],
+					"sid": 100000000058829
+				},
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "compare-y",
+							"objectClass": "Player",
+							"sid": 100000000060166,
+							"parameters": {
+								"comparison": 4,
+								"y-co-ordinate": "410"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "restart-layout",
+							"objectClass": "System",
+							"sid": 100000000061503
+						}
+					],
+					"sid": 100000000062840
+				}
+			]
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Coins",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000064177,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-collision-with-another-object",
+							"objectClass": "Player",
+							"sid": 100000000065514,
+							"parameters": {
+								"object": "Coin"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "destroy",
+							"objectClass": "Coin",
+							"sid": 100000000066851
+						},
+						{
+							"id": "add-to-eventvar",
+							"objectClass": "System",
+							"sid": 100000000068188,
+							"parameters": {
+								"variable": "Score",
+								"value": "1"
+							}
+						},
+						{
+							"id": "set-text",
+							"objectClass": "HUD",
+							"sid": 100000000069525,
+							"parameters": {
+								"text": "\"Coins: \" & Score"
+							}
+						}
+					],
+					"sid": 100000000070862
+				}
+			]
+		},
+		{
+			"eventType": "group",
+			"disabled": false,
+			"title": "Win",
+			"description": "",
+			"isActiveOnStart": true,
+			"sid": 100000000072199,
+			"children": [
+				{
+					"eventType": "block",
+					"conditions": [
+						{
+							"id": "on-collision-with-another-object",
+							"objectClass": "Player",
+							"sid": 100000000073536,
+							"parameters": {
+								"object": "Flag"
+							}
+						}
+					],
+					"actions": [
+						{
+							"id": "set-text",
+							"objectClass": "HUD",
+							"sid": 100000000074873,
+							"parameters": {
+								"text": "\"You win! Coins: \" & Score & \"/10\""
+							}
+						}
+					],
+					"sid": 100000000076210
+				}
+			]
+		}
+	],
+	"sid": 100000000001338
+}

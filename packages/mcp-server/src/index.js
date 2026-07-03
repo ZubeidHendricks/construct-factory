@@ -162,9 +162,70 @@ const TOOLS = [
         y: { type: "number" },
         width: { type: "number" },
         height: { type: "number" },
-        properties: { type: "object", description: "Optional instance properties" },
+        properties: { type: "object", description: "Optional instance properties (sensible defaults per plugin)" },
+        behaviors: {
+          type: "object",
+          description: "Per-instance behavior properties, e.g. { Platform: { properties: { \"max-speed\": 150, enabled: true } } }",
+        },
       },
       required: ["dir", "layout", "object"],
+    },
+  },
+  {
+    name: "add_plugin",
+    description: "Add a single-global plugin object to the project: Keyboard, Mouse, Touch, or gamepad (needed before events can reference input).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        plugin: { type: "string", enum: ["Keyboard", "Mouse", "Touch", "gamepad"] },
+      },
+      required: ["dir", "plugin"],
+    },
+  },
+  {
+    name: "add_tilemap",
+    description:
+      "Add a Tilemap object type. Pass `image` (path to a tileset PNG) for real art, or omit it to generate a strip of solid-color tiles (tile 0 = transparent/empty, tiles 1..N from `colors`). Add [\"solid\"] behaviors for ground.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        name: { type: "string" },
+        tileWidth: { type: "number", description: "Tile width px (default 16)" },
+        tileHeight: { type: "number", description: "Tile height px (default 16)" },
+        image: { type: "string", description: "Absolute path to a tileset PNG" },
+        colors: {
+          type: "array",
+          items: { type: "array", items: { type: "number" } },
+          description: "RGBA per generated tile, e.g. [[100,180,100,255],[140,110,80,255]]",
+        },
+        behaviors: { type: "array", items: { type: "string" } },
+      },
+      required: ["dir"],
+    },
+  },
+  {
+    name: "place_tilemap",
+    description:
+      "Place a tilemap instance on a layout. `grid` is a row-major 2D array of tile indices (0 = empty). Solid behavior is enabled automatically if the tilemap object type has it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        layout: { type: "string" },
+        object: { type: "string", description: "Tilemap object type name" },
+        grid: {
+          type: "array",
+          items: { type: "array", items: { type: "number" } },
+          description: "Rows of tile indices, e.g. [[0,0,0],[1,1,1]]",
+        },
+        tileWidth: { type: "number" },
+        tileHeight: { type: "number" },
+        x: { type: "number" },
+        y: { type: "number" },
+      },
+      required: ["dir", "layout", "object", "grid"],
     },
   },
   {
@@ -383,11 +444,41 @@ const handlers = {
       dir,
     };
   },
-  async place_instance({ dir, layout, object, x, y, width, height, properties }) {
+  async place_instance({ dir, layout, object, x, y, width, height, properties, behaviors }) {
     const game = await Game.open(dir);
-    const inst = game.placeInstance({ layout, object, x, y, width, height, properties });
+    const inst = game.placeInstance({ layout, object, x, y, width, height, properties, behaviors });
     await game.save();
     return { placed: object, layout, uid: inst.uid, dir };
+  },
+  async add_plugin({ dir, plugin }) {
+    const game = await Game.open(dir);
+    const ot = game.addGlobalPlugin(plugin);
+    await game.save();
+    return { added: ot.name, plugin: ot["plugin-id"], dir };
+  },
+  async add_tilemap({ dir, name, tileWidth, tileHeight, image, colors, behaviors }) {
+    const game = await Game.open(dir);
+    const ot = game.addTilemap({ name, tileWidth, tileHeight, image, colors, behaviors });
+    await game.save();
+    return {
+      added: ot.name,
+      plugin: ot["plugin-id"],
+      tileset: { width: ot.image.width, height: ot.image.height },
+      behaviors: (ot.behaviorTypes ?? []).map((b) => b.behaviorId),
+      dir,
+    };
+  },
+  async place_tilemap({ dir, layout, object, grid, tileWidth, tileHeight, x, y }) {
+    const game = await Game.open(dir);
+    const inst = game.placeTilemap({ layout, object, grid, tileWidth, tileHeight, x, y });
+    await game.save();
+    return {
+      placed: object,
+      layout,
+      uid: inst.uid,
+      sizePx: { width: inst.world.width, height: inst.world.height },
+      dir,
+    };
   },
   async add_event_group({ dir, eventSheet, title, isActiveOnStart }) {
     const game = await Game.open(dir);

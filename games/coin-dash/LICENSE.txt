@@ -1,3 +1,0 @@
-Art assets and this example project are by Kenney (www.kenney.nl),
-released under Creative Commons Zero (CC0) — public domain.
-Used here as a ground-truth reference for the Construct 3 .c3proj schema.

@@ -1,6 +1,6 @@
 {
 	"projectFormatVersion": 1,
-	"savedWithRelease": 35000,
+	"savedWithRelease": 48703,
 	"name": "Coin Dash",
 	"runtime": "c3",
 	"useWorker": "auto",
@@ -15,20 +15,6 @@
 		},
 		{
 			"type": "plugin",
-			"id": "Sprite",
-			"name": "Sprite",
-			"author": "Scirra",
-			"bundled": false
-		},
-		{
-			"type": "plugin",
-			"id": "TiledBg",
-			"name": "Tiled Background",
-			"author": "Scirra",
-			"bundled": false
-		},
-		{
-			"type": "plugin",
 			"id": "Tilemap",
 			"name": "Tilemap",
 			"author": "Scirra",
@@ -36,8 +22,15 @@
 		},
 		{
 			"type": "behavior",
-			"id": "Bullet",
-			"name": "Bullet",
+			"id": "solid",
+			"name": "Solid",
+			"author": "Scirra",
+			"bundled": false
+		},
+		{
+			"type": "plugin",
+			"id": "Sprite",
+			"name": "Sprite",
 			"author": "Scirra",
 			"bundled": false
 		},
@@ -50,41 +43,32 @@
 		},
 		{
 			"type": "behavior",
-			"id": "Sin",
-			"name": "Sine",
-			"author": "Scirra",
-			"bundled": false
-		},
-		{
-			"type": "behavior",
 			"id": "scrollto",
 			"name": "Scroll To",
 			"author": "Scirra",
 			"bundled": false
 		},
 		{
-			"type": "behavior",
-			"id": "solid",
-			"name": "Solid",
+			"type": "plugin",
+			"id": "Text",
+			"name": "Text",
 			"author": "Scirra",
 			"bundled": false
 		}
 	],
-	"uniqueId": "fx4jtk",
+	"uniqueId": "17wdrqp",
 	"objectTypes": {
 		"items": [
-			"Tilemap",
-			"Player",
 			"Keyboard",
+			"Terrain",
+			"Player",
 			"Coin",
-			"Spring",
-			"Background",
-			"Bug",
 			"Flag",
-			"Bat"
+			"HUD"
 		],
 		"subfolders": []
 	},
+	"functionsName": "Functions",
 	"autosaveData": null,
 	"containers": [],
 	"families": {
@@ -93,13 +77,13 @@
 	},
 	"layouts": {
 		"items": [
-			"Game"
+			"Level 1"
 		],
 		"subfolders": []
 	},
 	"eventSheets": {
 		"items": [
-			"Events"
+			"Level 1 events"
 		],
 		"subfolders": []
 	},
@@ -125,64 +109,7 @@
 			"subfolders": []
 		},
 		"icon": {
-			"items": [
-				{
-					"name": "icon-16.png",
-					"type": "image/png",
-					"sid": 894722913481906,
-					"icon-info": {
-						"purpose": "app-icon"
-					}
-				},
-				{
-					"name": "icon-32.png",
-					"type": "image/png",
-					"sid": 895332296156485,
-					"icon-info": {
-						"purpose": "app-icon"
-					}
-				},
-				{
-					"name": "icon-64.png",
-					"type": "image/png",
-					"sid": 344637423608818,
-					"icon-info": {
-						"purpose": "app-icon"
-					}
-				},
-				{
-					"name": "icon-128.png",
-					"type": "image/png",
-					"sid": 450117460650410,
-					"icon-info": {
-						"purpose": "app-icon"
-					}
-				},
-				{
-					"name": "icon-256.png",
-					"type": "image/png",
-					"sid": 312460300488617,
-					"icon-info": {
-						"purpose": "app-icon"
-					}
-				},
-				{
-					"name": "icon-512.png",
-					"type": "image/png",
-					"sid": 815584047999892,
-					"icon-info": {
-						"purpose": "app-icon"
-					}
-				},
-				{
-					"name": "loading-logo.png",
-					"type": "image/png",
-					"sid": 739583356900055,
-					"icon-info": {
-						"purpose": "loading-logo"
-					}
-				}
-			],
+			"items": [],
 			"subfolders": []
 		},
 		"general": {
@@ -192,22 +119,26 @@
 	},
 	"timelines": {
 		"items": [],
-		"subfolders": [
-			{
-				"items": [],
-				"subfolders": []
-			}
-		]
+		"subfolders": []
+	},
+	"flowcharts": {
+		"items": [],
+		"subfolders": []
+	},
+	"models3d": {
+		"items": [],
+		"subfolders": []
 	},
 	"properties": {
 		"description": "",
-		"version": "1.0.0",
-		"author": "Kenney",
+		"version": "1.0.0.0",
+		"autoIncrementVersion": false,
+		"author": "",
 		"authorEmail": "",
-		"authorWebsite": "https://kenney.nl/",
+		"authorWebsite": "",
 		"appId": "",
-		"pixelRounding": true,
-		"zAxisScale": "normalized",
+		"pixelRounding": false,
+		"zAxisScale": "regular",
 		"fov": 0.7853981633974483,
 		"useLoaderLayout": false,
 		"fullscreenMode": "letterbox-integer-scale",
@@ -232,12 +163,12 @@
 			1,
 			0
 		],
-		"orientations": "landscape",
+		"orientations": "any",
 		"webgpu": "auto",
+		"multitexturing": "auto",
 		"gpuPreference": "high-performance",
-		"scriptsType": "module",
 		"framerateMode": "vsync",
-		"compositingMode": "standard",
+		"fixedFramerate": 30,
 		"sampling": "nearest",
 		"downscaling": "medium",
 		"renderingMode": "auto",
@@ -247,13 +178,13 @@
 		"maxSpriteSheetSize": 2048,
 		"loaderStyle": "splash",
 		"preloadSounds": true,
+		"uidAllocationMode": "increment",
 		"cordovaiOSScheme": "app",
-		"cordovaAndroidScheme": "file",
-		"autoReloadScriptsOnPreview": false,
-		"exportFileStructure": "flat",
-		"uidAllocationMode": "increment"
+		"cordovaAndroidScheme": "https",
+		"exportFileStructure": "folders",
+		"scriptsType": "module"
 	},
-	"viewportWidth": 400,
-	"viewportHeight": 240,
-	"firstLayout": null
+	"viewportWidth": 640,
+	"viewportHeight": 360,
+	"firstLayout": "Level 1"
 }

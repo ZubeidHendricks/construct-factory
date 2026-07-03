@@ -228,7 +228,7 @@ export function layer({ name, ids }) {
 
 // A placed instance on a layer. `properties` are plugin-specific; caller passes
 // the right set (e.g. Sprite vs Text).
-export function instance({ type, ids, x = 0, y = 0, width = 32, height = 32, properties = {}, instanceVariables = {}, behaviors = {} }) {
+export function instance({ type, ids, x = 0, y = 0, width = 32, height = 32, originX = 0.5, originY = 0.5, properties = {}, instanceVariables = {}, behaviors = {} }) {
   return {
     type,
     properties,
@@ -244,11 +244,61 @@ export function instance({ type, ids, x = 0, y = 0, width = 32, height = 32, pro
       y,
       width,
       height,
-      originX: 0.5,
-      originY: 0.5,
+      originX,
+      originY,
       color: [1, 1, 1, 1],
       z: 0,
       angle: 0,
+    },
+  };
+}
+
+// Default per-instance properties for a placed Sprite (verified against the
+// Kenney reference instances).
+export function spriteInstanceProperties({ animation = "Default" } = {}) {
+  return {
+    "initially-visible": true,
+    "initial-animation": animation,
+    "initial-frame": 0,
+    "enable-collisions": true,
+    "live-preview": false,
+  };
+}
+
+// Default per-instance properties for a placed Text (verified against a real
+// project's Text instances).
+export function textInstanceProperties({ text = "", size = 16, color = [0, 0, 0, 1] } = {}) {
+  return {
+    text,
+    "enable-bbcode": true,
+    font: "Arial",
+    size,
+    "line-height": 0,
+    bold: false,
+    italic: false,
+    color,
+    "horizontal-alignment": "left",
+    "vertical-alignment": "top",
+    wrapping: "word",
+    "text-direction": "ltr",
+    "icon-set": -1,
+    "initially-visible": true,
+    origin: "top-left",
+    "read-aloud": false,
+  };
+}
+
+// A single-global plugin object (Keyboard, Mouse, Touch, gamepad, Audio, ...).
+// These have no world instances; one hidden global instance instead.
+export function objectTypeSingleGlobal({ name, pluginId, ids }) {
+  return {
+    name,
+    "plugin-id": pluginId,
+    sid: ids.sid(),
+    "singleglobal-inst": {
+      type: name,
+      properties: {},
+      uid: ids.uid(),
     },
   };
 }
@@ -399,6 +449,105 @@ export function frame({ width, height, imageSpriteId, originX = 0.5, originY = 0
 
 export function behaviorType({ behaviorId, name, ids }) {
   return { behaviorId, name, sid: ids.sid() };
+}
+
+// ---------------------------------------------------------------------------
+// Tilemaps. Shapes verified against the Kenney Pixel Platformer and Cave
+// Bridge reference projects.
+// ---------------------------------------------------------------------------
+
+// Tilemap object type: references one tileset image (a grid of tiles).
+export function objectTypeTilemap({ name, ids, imageWidth, imageHeight, imageSpriteId }) {
+  return {
+    name,
+    "plugin-id": "Tilemap",
+    sid: ids.sid(),
+    isGlobal: false,
+    instanceVariables: [],
+    behaviorTypes: [],
+    effectTypes: [],
+    image: {
+      width: imageWidth,
+      height: imageHeight,
+      originX: 0.5,
+      originY: 0.5,
+      originalSource: "",
+      exportFormat: "lossless",
+      exportQuality: 0.8,
+      imageSpriteId,
+      useCollisionPoly: true,
+    },
+    "tile-collision-polys": {},
+  };
+}
+
+// RLE-encode a row-major 2D grid of tile indices (0 = the transparent/empty
+// tile) into Construct's "5x123,143,4x0,..." format. Verified: token cell
+// count equals max-width*max-height in both reference projects.
+export function encodeTilemapData(grid) {
+  const flat = grid.flat();
+  const parts = [];
+  let i = 0;
+  while (i < flat.length) {
+    let run = 1;
+    while (i + run < flat.length && flat[i + run] === flat[i]) run++;
+    parts.push(run > 1 ? `${run}x${flat[i]}` : `${flat[i]}`);
+    i += run;
+  }
+  return parts.join(",");
+}
+
+// A placed tilemap instance. `grid` is a row-major 2D array of tile indices.
+export function tilemapInstance({ type, ids, grid, tileWidth, tileHeight, x = 0, y = 0, behaviors = {} }) {
+  const rows = grid.length;
+  const cols = grid[0]?.length ?? 0;
+  if (!rows || !cols) throw new Error("tilemap grid must be a non-empty 2D array");
+  if (grid.some((r) => r.length !== cols)) throw new Error("tilemap grid rows must all be the same length");
+  const tileProps = {
+    "tile-width": tileWidth,
+    "tile-height": tileHeight,
+    "tile-x-offset": 0,
+    "tile-y-offset": 0,
+    "tile-x-spacing": 0,
+    "tile-y-spacing": 0,
+  };
+  return {
+    type,
+    properties: {
+      "initially-visible": true,
+      ...tileProps,
+      "tile-x-drawing-offset": 0,
+      "tile-y-drawing-offset": 0,
+      "drawing-mode": "top-to-right",
+    },
+    uid: ids.uid(),
+    sid: ids.sid(),
+    tags: "",
+    instanceVariables: {},
+    behaviors,
+    ownData: {
+      tilemapData: {
+        width: cols,
+        height: rows,
+        "max-width": cols,
+        "max-height": rows,
+        data: encodeTilemapData(grid),
+      },
+      ...tileProps,
+    },
+    showing: true,
+    locked: false,
+    world: {
+      x,
+      y,
+      width: cols * tileWidth,
+      height: rows * tileHeight,
+      originX: 0,
+      originY: 0,
+      color: [1, 1, 1, 1],
+      z: 0,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

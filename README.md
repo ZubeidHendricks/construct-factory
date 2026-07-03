@@ -32,6 +32,17 @@ generateGame({ rootDir: "games", name: "Cave Boy Adventure", template: "cave-boy
 
 The format layer round-trips these real projects losslessly (read → write to a new folder is byte-identical, verified in `verify/`).
 
+## Example: a complete game from scratch
+
+`examples/coin-dash.mjs` builds a full playable platformer with no clone
+template: Kenney-art tilemap terrain (solid), an animated player with
+Platform+ScrollTo, 10 coins, a win flag, a score HUD, and grouped gameplay
+events — then packs it to `games/coin-dash.c3p`, ready to open in Construct 3.
+
+```bash
+node examples/coin-dash.mjs
+```
+
 ## Building from scratch
 
 The `c3-builder` API also assembles projects without a reference. Sprites emit

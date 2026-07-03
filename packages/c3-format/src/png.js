@@ -31,6 +31,40 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
+/** Read width/height from a PNG buffer's IHDR (throws if not a PNG). */
+export function pngSize(buf) {
+  const sig = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (!sig.every((b, i) => buf[i] === b)) throw new Error("not a PNG file");
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+/**
+ * Encode a horizontal-strip tileset PNG: tile 0 is fully transparent (the
+ * "empty" tile in tilemap data), followed by one solid-color tile per entry.
+ * @param {number} tileW
+ * @param {number} tileH
+ * @param {Array<[number,number,number,number]>} colors  RGBA per tile (1..N)
+ * @returns {Buffer}
+ */
+export function tilesetPng(tileW, tileH, colors) {
+  const tiles = [[0, 0, 0, 0], ...colors];
+  const width = tileW * tiles.length;
+  const stride = width * 4;
+  const raw = Buffer.alloc((stride + 1) * tileH);
+  for (let y = 0; y < tileH; y++) {
+    const rowStart = y * (stride + 1);
+    raw[rowStart] = 0; // filter: none
+    for (let t = 0; t < tiles.length; t++) {
+      const [r, g, b, a] = tiles[t];
+      for (let x = 0; x < tileW; x++) {
+        const p = rowStart + 1 + (t * tileW + x) * 4;
+        raw[p] = r; raw[p + 1] = g; raw[p + 2] = b; raw[p + 3] = a;
+      }
+    }
+  }
+  return encodePng(width, tileH, raw);
+}
+
 /**
  * Encode a solid-color RGBA PNG of the given size.
  * @param {number} width
@@ -53,6 +87,11 @@ export function solidPng(width, height, rgba = [120, 130, 200, 255]) {
       raw[p + 3] = a;
     }
   }
+  return encodePng(width, height, raw);
+}
+
+// Assemble a PNG from pre-filtered raw scanline data (RGBA, filter byte 0/row).
+function encodePng(width, height, raw) {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);

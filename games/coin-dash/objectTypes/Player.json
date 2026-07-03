@@ -1,19 +1,20 @@
 {
 	"name": "Player",
 	"plugin-id": "Sprite",
-	"sid": 161015435296661,
+	"sid": 100000000014708,
 	"isGlobal": false,
+	"editorNewInstanceIsReplica": true,
 	"instanceVariables": [],
 	"behaviorTypes": [
 		{
 			"behaviorId": "Platform",
 			"name": "Platform",
-			"sid": 443177445112132
+			"sid": 100000000017382
 		},
 		{
 			"behaviorId": "scrollto",
-			"name": "ScrollTo",
-			"sid": 263402810774754
+			"name": "scrollto",
+			"sid": 100000000018719
 		}
 	],
 	"effectTypes": [],
@@ -29,17 +30,17 @@
 						"originalSource": "",
 						"exportFormat": "lossless",
 						"exportQuality": 0.8,
-						"imageSpriteId": 4580476,
+						"imageSpriteId": 100000000012034,
 						"collisionPoly": {
 							"points": [
-								0.8333333333333334,
+								0,
+								0,
 								1,
-								0.16666666666666666,
+								0,
 								1,
-								0.16666666666666666,
-								0.08333333333333333,
-								0.8333333333333334,
-								0.08333333333333333
+								1,
+								0,
+								1
 							]
 						},
 						"useCollisionPoly": true,
@@ -53,24 +54,24 @@
 						"originalSource": "",
 						"exportFormat": "lossless",
 						"exportQuality": 0.8,
-						"imageSpriteId": 7992055,
+						"imageSpriteId": 100000000013371,
 						"collisionPoly": {
 							"points": [
-								0.8333333333333334,
+								0,
+								0,
 								1,
-								0.16666666666666666,
+								0,
 								1,
-								0.16666666666666666,
-								0.08333333333333333,
-								0.8333333333333334,
-								0.08333333333333333
+								1,
+								0,
+								1
 							]
 						},
 						"useCollisionPoly": true,
 						"duration": 1
 					}
 				],
-				"sid": 620379791426032,
+				"sid": 100000000016045,
 				"name": "Walk",
 				"isLooping": true,
 				"isPingPong": false,

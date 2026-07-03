@@ -7,7 +7,7 @@ import * as schema from "./schema.js";
 
 export * as schema from "./schema.js";
 export { unpackC3p, packC3p } from "./c3p.js";
-export { solidPng } from "./png.js";
+export { solidPng, tilesetPng, pngSize } from "./png.js";
 
 const SUBDIRS = ["layouts", "eventSheets", "objectTypes", "families", "images"];
 
@@ -108,6 +108,13 @@ export async function readProject(dir) {
 /** Write an in-memory model back out to a project folder (flat item layout). */
 export async function writeProject(model) {
   const { dir } = model;
+  // A brand-new project owns its folder: clear any leftovers from a previous
+  // build so stale files can't leak into the output. Only on the first save —
+  // opened projects must never have their assets wiped.
+  if (model.fresh) {
+    await fs.rm(dir, { recursive: true, force: true });
+    model.fresh = false;
+  }
   await fs.mkdir(dir, { recursive: true });
   for (const sub of SUBDIRS) await fs.mkdir(path.join(dir, sub), { recursive: true });
   await writeJson(path.join(dir, "project.c3proj"), model.manifest);
@@ -171,6 +178,17 @@ export function validateModel(model) {
   for (const [fname, fam] of Object.entries(model.families ?? {}))
     for (const m of fam.members ?? [])
       if (!model.objectTypes[m]) errors.push(`family "${fname}" member "${m}" has no objectType`);
+  // reverse direction: files on disk that the manifest doesn't know about
+  // (usually leftovers from a previous build in the same folder)
+  const orphan = (treeKey, bag, label) => {
+    const listed = new Set(flattenNames(m[treeKey]));
+    for (const name of Object.keys(bag ?? {}))
+      if (!listed.has(name)) errors.push(`${label} file "${name}" not listed in manifest (stale?)`);
+  };
+  orphan("layouts", model.layouts, "layout");
+  orphan("eventSheets", model.eventSheets, "eventSheet");
+  orphan("objectTypes", model.objectTypes, "objectType");
+  orphan("families", model.families, "family");
   if (m.firstLayout && !model.layouts[m.firstLayout])
     errors.push(`firstLayout "${m.firstLayout}" has no layout file`);
   return { ok: errors.length === 0, errors };
@@ -180,6 +198,7 @@ export function validateModel(model) {
 export function newProject({ dir, name, uid, viewportWidth, viewportHeight, seed = 1 }) {
   return {
     dir,
+    fresh: true,
     ids: new schema.Ids(seed),
     manifest: schema.projectManifest({ name, uid, viewportWidth, viewportHeight }),
     layouts: {},

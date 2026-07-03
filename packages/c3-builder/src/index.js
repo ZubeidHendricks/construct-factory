@@ -101,9 +101,11 @@ export class Game {
     const frames = sources.map((imgPath, i) => {
       const rel = `images/${slug(name)}-${animSlug}-${pad3(i)}.png`;
       const data = imgPath ? readFileSync(imgPath) : c3.solidPng(width, height, color);
+      // real image files are the source of truth for frame dimensions
+      const size = imgPath ? c3.pngSize(data) : { width, height };
       this.model.assets = this.model.assets ?? [];
       this.model.assets.push({ rel, data });
-      return schema.frame({ width, height, imageSpriteId: this.ids.sid(), originY });
+      return schema.frame({ width: size.width, height: size.height, imageSpriteId: this.ids.sid(), originY });
     });
 
     const ot = schema.objectTypeSprite({ name, ids: this.ids, frames, animName, speed, isLooping });
@@ -114,6 +116,55 @@ export class Game {
     this.model.objectTypes[name] = ot;
     pushItem(this.model.manifest.objectTypes, name);
     return ot;
+  }
+
+  /**
+   * Add a Tilemap object type. The tileset image comes from `image` (a PNG
+   * whose dimensions are read from the file), or is generated as a strip of
+   * solid-color tiles (tile 0 transparent = empty, then 1..N from `colors`).
+   * @param {object} o
+   * @param {string} [o.name]
+   * @param {number} [o.tileWidth=16]
+   * @param {number} [o.tileHeight=16]
+   * @param {string} [o.image]        path to a tileset PNG
+   * @param {Array}  [o.colors]       RGBA per generated tile when no image
+   * @param {string[]} [o.behaviors]  e.g. ["solid"]
+   */
+  addTilemap({ name, tileWidth = 16, tileHeight = 16, image, colors = [[100, 180, 100, 255]], behaviors = [] } = {}) {
+    name = name ?? `Tilemap${this.model.manifest.objectTypes.items.length + 1}`;
+    this.useAddon("Tilemap");
+    const data = image ? readFileSync(image) : c3.tilesetPng(tileWidth, tileHeight, colors);
+    const { width, height } = c3.pngSize(data);
+    const rel = `images/${slug(name)}.png`;
+    this.model.assets = this.model.assets ?? [];
+    this.model.assets.push({ rel, data });
+    const ot = schema.objectTypeTilemap({ name, ids: this.ids, imageWidth: width, imageHeight: height, imageSpriteId: this.ids.sid() });
+    for (const b of behaviors) {
+      this.useAddon(b);
+      ot.behaviorTypes.push(schema.behaviorType({ behaviorId: b, name: b, ids: this.ids }));
+    }
+    this.model.objectTypes[name] = ot;
+    pushItem(this.model.manifest.objectTypes, name);
+    return ot;
+  }
+
+  /**
+   * Place a tilemap instance on a layout's first layer. `grid` is a row-major
+   * 2D array of tile indices (0 = empty/transparent tile). If the tilemap
+   * object type has the solid behavior, the instance enables it.
+   */
+  placeTilemap({ layout, object, grid, tileWidth = 16, tileHeight = 16, x = 0, y = 0 }) {
+    const l = this.model.layouts[layout];
+    if (!l) throw new Error(`unknown layout: ${layout}`);
+    const ot = this.model.objectTypes[object];
+    if (!ot) throw new Error(`unknown object: ${object}`);
+    if (ot["plugin-id"] !== "Tilemap") throw new Error(`object "${object}" is not a Tilemap`);
+    const behaviors = {};
+    for (const b of ot.behaviorTypes ?? [])
+      if (b.behaviorId === "solid") behaviors[b.name] = { properties: { enabled: true, tags: "" } };
+    const inst = schema.tilemapInstance({ type: object, ids: this.ids, grid, tileWidth, tileHeight, x, y, behaviors });
+    l.layers[0].instances.push(inst);
+    return inst;
   }
 
   /**
@@ -199,13 +250,39 @@ export class Game {
   }
 
   /** Place an object instance onto a layout's first layer. */
-  placeInstance({ layout, object, x, y, width, height, properties } = {}) {
+  placeInstance({ layout, object, x, y, width, height, properties, behaviors = {} } = {}) {
     const l = this.model.layouts[layout];
     if (!l) throw new Error(`unknown layout: ${layout}`);
-    if (!this.model.objectTypes[object]) throw new Error(`unknown object: ${object}`);
-    const inst = schema.instance({ type: object, ids: this.ids, x, y, width, height, properties });
+    const ot = this.model.objectTypes[object];
+    if (!ot) throw new Error(`unknown object: ${object}`);
+    let originX = 0.5, originY = 0.5;
+    if (ot["plugin-id"] === "Sprite") {
+      const anim = ot.animations?.items?.[0];
+      const f = anim?.frames?.[0];
+      // default size and origin from the first frame so art isn't distorted
+      width = width ?? f?.width;
+      height = height ?? f?.height;
+      originX = f?.originX ?? 0.5;
+      originY = f?.originY ?? 0.5;
+      properties = properties ?? schema.spriteInstanceProperties({ animation: anim?.name });
+    } else if (ot["plugin-id"] === "Text") {
+      properties = properties ?? schema.textInstanceProperties();
+      originX = 0; originY = 0;
+    }
+    const inst = schema.instance({ type: object, ids: this.ids, x, y, width, height, originX, originY, properties, behaviors });
     l.layers[0].instances.push(inst);
     return inst;
+  }
+
+  /** Add a single-global input/system plugin object (Keyboard, Mouse, Touch, gamepad). */
+  addGlobalPlugin(pluginKey, { name } = {}) {
+    this.useAddon(pluginKey);
+    name = name ?? pluginKey;
+    if (this.model.objectTypes[name]) return this.model.objectTypes[name];
+    const ot = schema.objectTypeSingleGlobal({ name, pluginId: pluginKey, ids: this.ids });
+    this.model.objectTypes[name] = ot;
+    pushItem(this.model.manifest.objectTypes, name);
+    return ot;
   }
 
   // --- Level editing on an opened (cloned) project --------------------------
