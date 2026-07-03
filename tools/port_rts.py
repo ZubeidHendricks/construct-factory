@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""Port mechanic systems (event groups + their full dependency closure) from a
+purchased Construct 3 RTS source into a local game project.
+
+The port brings across: event groups (verbatim), function definitions,
+object types (+ their images extracted from the source .c3p), families
+(members pruned to what's ported), single-global plugin objects, referenced
+voice/sound files, required layers, and hidden helper instances — then
+verifies every objectClass referenced by ported events actually exists.
+
+NOTE ON LICENSE: the source's license permits using code portions in your own
+projects but forbids publishing its sources. The destination game folder must
+stay gitignored. This tool itself contains no licensed content.
+
+Usage:  python3 tools/port_rts.py
+"""
+
+import json, re, sys, zipfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "reference/nuke-them-all"
+C3P = Path("/Users/zubeidhendricks/Documents/screenshots/source/NukeGameFull077_ready.c3p")
+DEST = ROOT / "games/dala"
+SHEET = "Battlefield events"
+LAYOUT = "Battlefield"
+
+# ---- phase configuration ----------------------------------------------------
+GROUPS = [
+    "Group Selector Mouse box",
+    "TroopsFreindlySelection",
+]
+FUNCTIONS = ["createCursorTarget", "LETSGO", "READY"]
+OBJECT_TYPES = [  # subfolder-qualified paths under SRC/objectTypes
+    "OurUnits/TroopsFreindly", "OurUnits/spr_hero_tank", "ZExtras/FirebotFLY",
+    "OurUnits/LightTank", "OurUnits/GruntTroopsFreindly", "MapElements/Flag",
+    "System/SelectionBox", "System/Cursor_All", "System/CursorTarget",
+    "System/LOS_lineofsight", "ZExtras/Wayline",
+    "Texts/TextTotalSelected", "Texts/ID", "Texts/MyORDERTextTank", "Texts/MyOrderRobotText",
+]
+PLUGINS = ["Keyboard", "Gamepad", "Browser", "Audio"]  # single-globals to port
+FAMILIES = ["OurUnits", "OurTanksFamily", "OurRobotFamily"]
+UI_LAYER = "UI"
+BUILTIN = {"System", "Functions"}
+
+jload = lambda p: json.loads(Path(p).read_text())
+jdump = lambda p, o: Path(p).write_text(json.dumps(o, indent="\t") + "\n")
+
+
+def find_ot(name):
+    hits = list((SRC / "objectTypes").rglob(f"{name}.json"))
+    if not hits:
+        sys.exit(f"FATAL: objectType {name} not found in source")
+    return jload(hits[0])
+
+
+def main():
+    manifest = jload(DEST / "project.c3proj")
+    layout = jload(DEST / f"layouts/{LAYOUT}.json")
+    sheet = jload(DEST / f"eventSheets/{SHEET}.json")
+    zf = zipfile.ZipFile(C3P)
+    names = zf.namelist()
+
+    # fresh-uid allocator above anything already in the layout
+    used_uids = [i.get("uid", 0) for layer in layout["layers"] for i in layer["instances"]]
+    next_uid = [max(used_uids, default=0) + 100]
+    def uid():
+        next_uid[0] += 1
+        return next_uid[0]
+
+    def use_addon(kind, aid, aname):
+        if not any(a["id"] == aid and a["type"] == kind for a in manifest["usedAddons"]):
+            manifest["usedAddons"].append({"type": kind, "id": aid, "name": aname, "author": "Scirra", "bundled": False})
+
+    # -- source manifest is ground truth for addon display names
+    src_manifest = jload(SRC / "project.c3proj")
+    src_addons = {(a["type"], a["id"]): a for a in src_manifest["usedAddons"]}
+    def use_addon_like_src(kind, aid):
+        a = src_addons.get((kind, aid))
+        use_addon(kind, aid, a["name"] if a else aid)
+
+    ported_types = set(manifest["objectTypes"]["items"])
+
+    # ---- 1. single-global plugin objects -------------------------------------
+    for p in PLUGINS:
+        if p in ported_types:
+            continue
+        ot = find_ot(p)
+        if "singleglobal-inst" in ot:
+            ot["singleglobal-inst"]["uid"] = uid()
+        jdump(DEST / f"objectTypes/{p}.json", ot)
+        manifest["objectTypes"]["items"].append(p)
+        ported_types.add(p)
+        use_addon_like_src("plugin", ot["plugin-id"])
+        print(f"[plugin] {p}")
+
+    # ---- 2. object types + images --------------------------------------------
+    img_entries = {n.lower(): n for n in names if n.lower().startswith("images\\")}
+    def extract_images(ot_name):
+        prefix = f"images\\{ot_name.lower()}-"
+        got = 0
+        for low, real in img_entries.items():
+            if low.startswith(prefix):
+                data = zf.read(real)
+                fname = real.split("\\")[-1]
+                (DEST / "images" / fname).write_bytes(data)
+                got += 1
+        return got
+
+    for path in OBJECT_TYPES:
+        name = path.split("/")[-1]
+        if name in ported_types:
+            continue
+        ot = jload(SRC / "objectTypes" / f"{path}.json")
+        jdump(DEST / f"objectTypes/{name}.json", ot)
+        manifest["objectTypes"]["items"].append(name)
+        ported_types.add(name)
+        use_addon_like_src("plugin", ot["plugin-id"])
+        for b in ot.get("behaviorTypes", []):
+            use_addon_like_src("behavior", b["behaviorId"])
+        n_img = extract_images(name) if ot["plugin-id"] == "Sprite" else 0
+        n_frames = sum(len(a.get("frames", [])) for a in ot.get("animations", {}).get("items", []))
+        if ot["plugin-id"] == "Sprite" and n_img < n_frames:
+            print(f"  WARN {name}: {n_frames} frames but {n_img} images extracted")
+        print(f"[objectType] {name} (+{n_img} images)")
+
+    # ---- 3. families (members pruned to ported types) -------------------------
+    fam_names = set(manifest.get("families", {}).get("items", []))
+    for f in FAMILIES:
+        if f in fam_names:
+            continue
+        fam = jload(SRC / f"families/{f}.json")
+        orig = fam.get("members", [])
+        fam["members"] = [m for m in orig if m in ported_types]
+        for b in fam.get("behaviorTypes", []):
+            use_addon_like_src("behavior", b["behaviorId"])
+        jdump(DEST / f"families/{f}.json", fam)
+        manifest["families"]["items"].append(f)
+        fam_names.add(f)
+        print(f"[family] {f}: {len(orig)} -> {len(fam['members'])} members {fam['members']}")
+
+    # ---- 4. functions + groups from the source sheet ---------------------------
+    src_sheet = jload(SRC / "eventSheets/Sh_Level1.json")
+    got_fns, got_groups = {}, {}
+
+    def collect(events):
+        for e in events:
+            if e.get("eventType") == "function-block" and e.get("functionName") in FUNCTIONS:
+                got_fns[e["functionName"]] = e
+            if e.get("eventType") == "group" and e.get("title") in GROUPS:
+                got_groups[e["title"]] = e
+            if e.get("children"):
+                collect(e["children"])
+    collect(src_sheet["events"])
+
+    for fn in FUNCTIONS:
+        if fn not in got_fns:
+            sys.exit(f"FATAL: function {fn} not found")
+        sheet["events"].append(got_fns[fn])
+        print(f"[function] {fn}")
+    for gtitle in GROUPS:
+        if gtitle not in got_groups:
+            sys.exit(f"FATAL: group {gtitle} not found")
+        sheet["events"].append(got_groups[gtitle])
+        print(f"[group] {gtitle} ({len(got_groups[gtitle].get('children', []))} events)")
+
+    # ---- 5. reference check: everything ported events touch must exist ---------
+    refs, missing = set(), set()
+    def scan(events):
+        for e in events:
+            for part in ("conditions", "actions"):
+                for x in e.get(part, []):
+                    if x.get("objectClass"):
+                        refs.add(x["objectClass"])
+            if e.get("children"):
+                scan(e["children"])
+    for e in list(got_fns.values()) + list(got_groups.values()):
+        scan([e])
+    for r in sorted(refs):
+        if r not in ported_types and r not in fam_names and r not in BUILTIN:
+            missing.add(r)
+    if missing:
+        sys.exit(f"FATAL: ported events reference missing objects: {sorted(missing)}")
+    print(f"[check] {len(refs)} objectClass refs all resolve")
+
+    # ---- 6. sounds referenced by ported events ----------------------------------
+    wanted = set()
+    def scan_sounds(events):
+        for e in events:
+            for x in e.get("actions", []):
+                if x.get("id") in ("play", "play-by-name"):
+                    expr = json.dumps(x.get("parameters", {}))
+                    wanted.update(re.findall(r'[\\\\"]+([a-z0-9_]+)[\\\\"]+', expr))
+            if e.get("children"):
+                scan_sounds(e["children"])
+    for e in list(got_fns.values()) + list(got_groups.values()):
+        scan_sounds([e])
+    snd_entries = {n.split("\\")[-1].rsplit(".", 1)[0].lower(): n for n in names if n.lower().startswith("sounds\\")}
+    (DEST / "sounds").mkdir(exist_ok=True)
+    n_snd = 0
+    for w in sorted(wanted):
+        real = snd_entries.get(w)
+        if not real:
+            continue
+        fname = real.split("\\")[-1]
+        (DEST / "sounds" / fname).write_bytes(zf.read(real))
+        if not any(i["name"] == fname for i in manifest["rootFileFolders"]["sound"]["items"]):
+            manifest["rootFileFolders"]["sound"]["items"].append(
+                {"name": fname, "type": "audio/webm; codecs=opus", "sid": 900000000000000 + n_snd, "file-info": {"purpose": "none"}})
+        n_snd += 1
+    print(f"[sounds] {n_snd} voice files extracted")
+
+    # ---- 7. UI layer + hidden helper instances ---------------------------------
+    if not any(l["name"] == UI_LAYER for l in layout["layers"]):
+        base = json.loads(json.dumps(layout["layers"][0]))
+        base.update({"name": UI_LAYER, "instances": [], "sid": 900000000000999, "parallaxX": 0, "parallaxY": 0})
+        layout["layers"].append(base)
+        print(f"[layer] {UI_LAYER} added")
+
+    # mirror one source instance per helper type (their code repositions them)
+    HELPERS = ["SelectionBox", "Cursor_All", "CursorTarget", "LOS_lineofsight", "Wayline",
+               "TextTotalSelected", "ID", "MyORDERTextTank", "MyOrderRobotText"]
+    src_inst = {}
+    for lp in sorted((SRC / "layouts").glob("*.json")):
+        if lp.name.endswith(".uistate.json"):
+            continue
+        try:
+            L = jload(lp)
+        except Exception:
+            continue
+        for layer in L.get("layers", []):
+            for inst in layer.get("instances", []):
+                if inst["type"] in HELPERS and inst["type"] not in src_inst:
+                    src_inst[inst["type"]] = inst
+    ui = next(l for l in layout["layers"] if l["name"] == UI_LAYER)
+    have = {i["type"] for layer in layout["layers"] for i in layer["instances"]}
+    for h in HELPERS:
+        if h in have:
+            continue
+        if h in src_inst:
+            inst = json.loads(json.dumps(src_inst[h]))
+            inst["uid"] = uid()
+            inst["world"]["x"], inst["world"]["y"] = 20, 60
+        else:  # no placed instance anywhere in source; minimal default
+            ot = jload(DEST / f"objectTypes/{h}.json")
+            is_text = ot["plugin-id"] == "Text"
+            inst = {"type": h, "properties": {}, "uid": uid(), "sid": 910000000000000 + next_uid[0],
+                    "tags": "", "instanceVariables": {}, "behaviors": {}, "showing": True, "locked": False,
+                    "world": {"x": 20, "y": 60, "width": 100, "height": 24, "originX": 0, "originY": 0,
+                              "color": [1, 1, 1, 1], "z": 0, "angle": 0}}
+            if is_text:
+                inst["properties"] = {"text": "", "enable-bbcode": True, "font": "Arial", "size": 14,
+                    "line-height": 0, "bold": False, "italic": False, "color": [1, 1, 1, 1],
+                    "horizontal-alignment": "left", "vertical-alignment": "top", "wrapping": "word",
+                    "text-direction": "ltr", "icon-set": -1, "initially-visible": True,
+                    "origin": "top-left", "read-aloud": False}
+        ui["instances"].append(inst)
+        print(f"[instance] {h} on {UI_LAYER}")
+
+    # ---- 8. deploy ported units on the battlefield ------------------------------
+    UNITS = [("TroopsFreindly", 300, 560), ("TroopsFreindly", 340, 600), ("TroopsFreindly", 300, 640),
+             ("GruntTroopsFreindly", 400, 560), ("GruntTroopsFreindly", 440, 600),
+             ("LightTank", 380, 660), ("spr_hero_tank", 470, 640)]
+    src_unit_inst = {}
+    for lp in sorted((SRC / "layouts").glob("*.json")):
+        if lp.name.endswith(".uistate.json"):
+            continue
+        try:
+            L = jload(lp)
+        except Exception:
+            continue
+        for layer in L.get("layers", []):
+            for inst in layer.get("instances", []):
+                if inst["type"] in {u[0] for u in UNITS} and inst["type"] not in src_unit_inst:
+                    src_unit_inst[inst["type"]] = inst
+    main_layer = layout["layers"][0]
+    for t, x, y in UNITS:
+        if t not in src_unit_inst:
+            print(f"  WARN no source instance found for {t}; skipping placement")
+            continue
+        inst = json.loads(json.dumps(src_unit_inst[t]))
+        inst["uid"] = uid()
+        inst["world"]["x"], inst["world"]["y"] = x, y
+        main_layer["instances"].append(inst)
+        print(f"[unit] {t} at ({x},{y})")
+
+    # ---- write everything -------------------------------------------------------
+    (DEST / "families").mkdir(exist_ok=True)
+    jdump(DEST / "project.c3proj", manifest)
+    jdump(DEST / f"layouts/{LAYOUT}.json", layout)
+    jdump(DEST / f"eventSheets/{SHEET}.json", sheet)
+    print("\nPORT COMPLETE")
+
+
+if __name__ == "__main__":
+    main()
