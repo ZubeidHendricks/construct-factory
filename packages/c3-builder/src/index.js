@@ -116,6 +116,25 @@ export class Game {
     return ot;
   }
 
+  /**
+   * Add a Family grouping existing object types (all must share pluginId).
+   * Shape verified against a commercial RTS source (52 real family files).
+   */
+  addFamily({ name, members = [], pluginId = "Sprite", behaviors = [] } = {}) {
+    name = name ?? `Family${(this.model.manifest.families.items ?? []).length + 1}`;
+    for (const m of members)
+      if (!this.model.objectTypes[m]) throw new Error(`family member "${m}" is not an object type`);
+    const behaviorTypes = behaviors.map((b) => {
+      this.useAddon(b);
+      return schema.behaviorType({ behaviorId: b, name: b, ids: this.ids });
+    });
+    const fam = schema.familyFile({ name, ids: this.ids, pluginId, members, behaviorTypes });
+    this.model.families = this.model.families ?? {};
+    this.model.families[name] = fam;
+    pushItem(this.model.manifest.families, name);
+    return fam;
+  }
+
   /** Append a conditions->actions block to an event sheet (by name). */
   addEvent({ eventSheet, conditions = [], actions = [] }) {
     const es = this.model.eventSheets[eventSheet];

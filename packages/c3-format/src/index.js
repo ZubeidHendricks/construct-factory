@@ -166,6 +166,11 @@ export function validateModel(model) {
   check("layouts", model.layouts, "layout");
   check("eventSheets", model.eventSheets, "eventSheet");
   check("objectTypes", model.objectTypes, "objectType");
+  check("families", model.families ?? {}, "family");
+  // family members must be real object types
+  for (const [fname, fam] of Object.entries(model.families ?? {}))
+    for (const m of fam.members ?? [])
+      if (!model.objectTypes[m]) errors.push(`family "${fname}" member "${m}" has no objectType`);
   if (m.firstLayout && !model.layouts[m.firstLayout])
     errors.push(`firstLayout "${m.firstLayout}" has no layout file`);
   return { ok: errors.length === 0, errors };

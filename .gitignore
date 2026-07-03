@@ -7,3 +7,5 @@ games/**/exports/
 
 # local-only reference project (kept out of the repo to limit size)
 reference/pop/
+# purchased source (license forbids publishing) — never commit
+reference/nuke-them-all/

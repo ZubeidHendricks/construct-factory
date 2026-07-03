@@ -31,23 +31,61 @@ export const emptyFolder = () => ({ items: [], subfolders: [] });
 
 // Catalog of first-party addons, keyed by the plugin/behavior id we reference.
 // Used to populate manifest.usedAddons as objects/behaviors are added.
+// Descriptors verified verbatim against real project manifests (KiwiStory,
+// Kenney Pixel Platformer, Cave Bridge, and a commercial RTS source).
 export const ADDONS = {
   // plugins
-  Sprite: { type: "plugin", id: "Sprite", name: "Sprite", author: "Scirra" },
-  Text: { type: "plugin", id: "Text", name: "Text", author: "Scirra" },
-  TiledBg: { type: "plugin", id: "TiledBg", name: "Tiled Background", author: "Scirra" },
-  Spritefont2: { type: "plugin", id: "Spritefont2", name: "Sprite font", author: "Scirra" },
-  NinePatch: { type: "plugin", id: "NinePatch", name: "9-patch", author: "Scirra" },
-  Mouse: { type: "plugin", id: "Mouse", name: "Mouse", author: "Scirra" },
-  Keyboard: { type: "plugin", id: "Keyboard", name: "Keyboard", author: "Scirra" },
-  Touch: { type: "plugin", id: "Touch", name: "Touch", author: "Scirra" },
+  AJAX: { type: "plugin", id: "AJAX", name: "AJAX", author: "Scirra" },
+  Arr: { type: "plugin", id: "Arr", name: "Array", author: "Scirra" },
   Audio: { type: "plugin", id: "Audio", name: "Audio", author: "Scirra" },
+  BinaryData: { type: "plugin", id: "BinaryData", name: "Binary Data", author: "Scirra" },
+  Browser: { type: "plugin", id: "Browser", name: "Browser", author: "Scirra" },
+  Button: { type: "plugin", id: "Button", name: "Button", author: "Scirra" },
+  Clipboard: { type: "plugin", id: "Clipboard", name: "Clipboard", author: "Scirra" },
+  Date: { type: "plugin", id: "Date", name: "Date", author: "Scirra" },
+  Dictionary: { type: "plugin", id: "Dictionary", name: "Dictionary", author: "Scirra" },
+  DrawingCanvas: { type: "plugin", id: "DrawingCanvas", name: "Drawing canvas", author: "Scirra" },
+  Keyboard: { type: "plugin", id: "Keyboard", name: "Keyboard", author: "Scirra" },
+  List: { type: "plugin", id: "List", name: "List", author: "Scirra" },
+  LocalStorage: { type: "plugin", id: "LocalStorage", name: "Local storage", author: "Scirra" },
+  Mouse: { type: "plugin", id: "Mouse", name: "Mouse", author: "Scirra" },
+  NinePatch: { type: "plugin", id: "NinePatch", name: "9-patch", author: "Scirra" },
+  Particles: { type: "plugin", id: "Particles", name: "Particles", author: "Scirra" },
+  PlatformInfo: { type: "plugin", id: "PlatformInfo", name: "Platform info", author: "Scirra" },
+  Sprite: { type: "plugin", id: "Sprite", name: "Sprite", author: "Scirra" },
+  Spritefont2: { type: "plugin", id: "Spritefont2", name: "Sprite font", author: "Scirra" },
+  Text: { type: "plugin", id: "Text", name: "Text", author: "Scirra" },
+  TextBox: { type: "plugin", id: "TextBox", name: "Text input", author: "Scirra" },
+  TiledBg: { type: "plugin", id: "TiledBg", name: "Tiled Background", author: "Scirra" },
+  Tilemap: { type: "plugin", id: "Tilemap", name: "Tilemap", author: "Scirra" },
+  Touch: { type: "plugin", id: "Touch", name: "Touch", author: "Scirra" },
+  filechooser: { type: "plugin", id: "filechooser", name: "File chooser", author: "Scirra" },
+  gamepad: { type: "plugin", id: "gamepad", name: "Gamepad", author: "Scirra" },
+  video: { type: "plugin", id: "video", name: "Video", author: "Scirra" },
   // behaviors
-  Platform: { type: "behavior", id: "Platform", name: "Platform", author: "Scirra" },
+  Anchor: { type: "behavior", id: "Anchor", name: "Anchor", author: "Scirra" },
   Bullet: { type: "behavior", id: "Bullet", name: "Bullet", author: "Scirra" },
-  solid: { type: "behavior", id: "solid", name: "Solid", author: "Scirra" },
-  jumpthru: { type: "behavior", id: "jumpthru", name: "Jump-thru", author: "Scirra" },
+  DragnDrop: { type: "behavior", id: "DragnDrop", name: "Drag & Drop", author: "Scirra" },
+  EightDir: { type: "behavior", id: "EightDir", name: "8 Direction", author: "Scirra" },
+  Fade: { type: "behavior", id: "Fade", name: "Fade", author: "Scirra" },
+  Flash: { type: "behavior", id: "Flash", name: "Flash", author: "Scirra" },
+  LOS: { type: "behavior", id: "LOS", name: "Line of sight", author: "Scirra" },
+  MoveTo: { type: "behavior", id: "MoveTo", name: "Move To", author: "Scirra" },
+  Pathfinding: { type: "behavior", id: "Pathfinding", name: "Pathfinding", author: "Scirra" },
+  Physics: { type: "behavior", id: "Physics", name: "Physics", author: "Scirra" },
+  Pin: { type: "behavior", id: "Pin", name: "Pin", author: "Scirra" },
+  Platform: { type: "behavior", id: "Platform", name: "Platform", author: "Scirra" },
+  Rotate: { type: "behavior", id: "Rotate", name: "Rotate", author: "Scirra" },
   Sin: { type: "behavior", id: "Sin", name: "Sine", author: "Scirra" },
+  Timer: { type: "behavior", id: "Timer", name: "Timer", author: "Scirra" },
+  Turret: { type: "behavior", id: "Turret", name: "Turret", author: "Scirra" },
+  Tween: { type: "behavior", id: "Tween", name: "Tween", author: "Scirra" },
+  bound: { type: "behavior", id: "bound", name: "Bound to layout", author: "Scirra" },
+  custom: { type: "behavior", id: "custom", name: "Custom", author: "Scirra" },
+  destroy: { type: "behavior", id: "destroy", name: "Destroy outside layout", author: "Scirra" },
+  jumpthru: { type: "behavior", id: "jumpthru", name: "Jump-thru", author: "Scirra" },
+  scrollto: { type: "behavior", id: "scrollto", name: "Scroll To", author: "Scirra" },
+  solid: { type: "behavior", id: "solid", name: "Solid", author: "Scirra" },
 };
 
 export const addonDescriptor = (key) => {
@@ -228,14 +266,17 @@ export function block({ ids, conditions = [], actions = [] }) {
   return { eventType: "block", conditions, actions, sid: ids.sid() };
 }
 
-export function condition({ id, objectClass = "System", ids, parameters }) {
+export function condition({ id, objectClass = "System", ids, parameters, behaviorType, isInverted }) {
   const c = { id, objectClass, sid: ids.sid() };
+  if (behaviorType) c.behaviorType = behaviorType; // e.g. "Platform" for is-on-floor
+  if (isInverted) c.isInverted = true;
   if (parameters) c.parameters = parameters;
   return c;
 }
 
-export function action({ id, objectClass = "System", ids, parameters }) {
+export function action({ id, objectClass = "System", ids, parameters, behaviorType }) {
   const a = { id, objectClass, sid: ids.sid() };
+  if (behaviorType) a.behaviorType = behaviorType; // e.g. "Platform" for set-vector-y
   if (parameters) a.parameters = parameters;
   return a;
 }

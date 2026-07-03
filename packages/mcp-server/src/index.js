@@ -167,6 +167,29 @@ const TOOLS = [
     },
   },
   {
+    name: "add_family",
+    description:
+      "Add a Family grouping existing object types (e.g. all enemies), optionally with shared behaviors. Events targeting the family apply to every member — the standard way RTS games manage hundreds of units.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        dir: { type: "string" },
+        name: { type: "string" },
+        members: {
+          type: "array",
+          items: { type: "string" },
+          description: "Names of existing object types to include",
+        },
+        behaviors: {
+          type: "array",
+          items: { type: "string" },
+          description: "Behavior keys shared by all members, e.g. [\"Pathfinding\", \"LOS\"]",
+        },
+      },
+      required: ["dir", "name", "members"],
+    },
+  },
+  {
     name: "list_level",
     description:
       "Inspect a cloned project: list its layouts, object types, and the instances (with uid + x/y) on a given layout. Pass a layout name to list its instances.",
@@ -303,6 +326,12 @@ const handlers = {
     const inst = game.placeInstance({ layout, object, x, y, width, height, properties });
     await game.save();
     return { placed: object, layout, uid: inst.uid, dir };
+  },
+  async add_family({ dir, name, members, behaviors }) {
+    const game = await Game.open(dir);
+    const fam = game.addFamily({ name, members, behaviors });
+    await game.save();
+    return { added: fam.name, members: fam.members, behaviors: (fam.behaviorTypes ?? []).map((b) => b.behaviorId), dir };
   },
   async list_level({ dir, layout }) {
     const game = await Game.open(dir);
