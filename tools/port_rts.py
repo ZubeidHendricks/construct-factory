@@ -598,6 +598,59 @@ def main():
                 pruned_tpl += 1
     print(f"[prune] {pruned_iv} orphan instance vars, {pruned_bh} behaviors, {pruned_fx} effects, {pruned_tpl} template links removed")
 
+    # ---- 10. strip deprecated plugins ------------------------------------------
+    # NodeWebkit (NW.js) is deprecated in current Construct and pops a warning
+    # dialog on every open. It's only used here for desktop file-logging (which
+    # does nothing in a browser anyway), so remove it wholesale: drop event
+    # blocks that reference it (by objectClass or NWJs.* expression), then the
+    # object type and addon registration.
+    STRIP_PLUGINS = {"NodeWebkit": "NWJs"}
+    for plugin_id, obj_name in STRIP_PLUGINS.items():
+        def references(node):
+            if obj_name in json.dumps(node):
+                # precise: objectClass match, or "<obj>." expression token
+                for part in ("conditions", "actions"):
+                    for x in node.get(part, []):
+                        if isinstance(x, dict):
+                            if x.get("objectClass") == obj_name:
+                                return True
+                            if obj_name + "." in json.dumps(x.get("parameters") or {}):
+                                return True
+            return False
+
+        removed = [0]
+        def filter_events(events):
+            kept = []
+            for e in events:
+                if e.get("children"):
+                    e["children"] = filter_events(e["children"])
+                if references(e):
+                    removed[0] += 1
+                    continue
+                kept.append(e)
+            return kept
+        # the in-memory `sheet` (District Six events) holds the ported groups
+        sheet["events"] = filter_events(sheet["events"])
+        # plus any other event-sheet files already on disk (win/lose stubs etc.)
+        for n in manifest["eventSheets"]["items"]:
+            if n == SHEET:
+                continue
+            sfile = DEST / f"eventSheets/{n}.json"
+            if not sfile.exists():
+                continue
+            sdata = jload(sfile)
+            sdata["events"] = filter_events(sdata["events"])
+            jdump(sfile, sdata)
+
+        # remove object type + manifest registration + addon
+        otf = DEST / f"objectTypes/{obj_name}.json"
+        if otf.exists():
+            otf.unlink()
+        if obj_name in manifest["objectTypes"]["items"]:
+            manifest["objectTypes"]["items"].remove(obj_name)
+        manifest["usedAddons"] = [a for a in manifest["usedAddons"] if a["id"] != plugin_id]
+        print(f"[strip] {plugin_id}: removed {removed[0]} event blocks + object '{obj_name}'")
+
     # ---- write everything -------------------------------------------------------
     (DEST / "families").mkdir(exist_ok=True)
     jdump(DEST / "project.c3proj", manifest)
