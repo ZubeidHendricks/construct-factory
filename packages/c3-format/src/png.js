@@ -39,15 +39,17 @@ export function pngSize(buf) {
 }
 
 /**
- * Encode a horizontal-strip tileset PNG: tile 0 is fully transparent (the
- * "empty" tile in tilemap data), followed by one solid-color tile per entry.
+ * Encode a horizontal-strip tileset PNG: one solid-color tile per entry.
+ * Construct tilemap data is 1-based (data value 0 = empty cell, value N draws
+ * image tile N-1 — verified against a live preview render), so grid value N
+ * maps to colors[N-1] and no transparent tile is needed in the image.
  * @param {number} tileW
  * @param {number} tileH
- * @param {Array<[number,number,number,number]>} colors  RGBA per tile (1..N)
+ * @param {Array<[number,number,number,number]>} colors  RGBA per tile
  * @returns {Buffer}
  */
 export function tilesetPng(tileW, tileH, colors) {
-  const tiles = [[0, 0, 0, 0], ...colors];
+  const tiles = [...colors];
   const width = tileW * tiles.length;
   const stride = width * 4;
   const raw = Buffer.alloc((stride + 1) * tileH);

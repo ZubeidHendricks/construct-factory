@@ -34,6 +34,8 @@ GROUPS = [
     "ROBOT FACTORIES v4 Rio",
     "RALLY Point Robot factories",
     "FLAG CAPTURING SYSTEM V3 (FIXED By RIO) REWORKED",
+    # camera: edge-scroll / zoom / pan (the map is bigger than the viewport)
+    "CAMERA Scroll, Zoom, Pan (FIXED)",
 ]
 FUNCTIONS = [
     "createCursorTarget", "LETSGO", "READY",
@@ -450,13 +452,15 @@ def main():
         if h in src_inst:
             inst = json.loads(json.dumps(src_inst[h]))
             inst["uid"] = uid()
-            inst["world"]["x"], inst["world"]["y"] = 20, 60
+            # park offscreen: their code repositions these at runtime, and
+            # onscreen they stack into a visible mess at layout start
+            inst["world"]["x"], inst["world"]["y"] = -2000, -2000
         else:  # no placed instance anywhere in source; minimal default
             ot = jload(DEST / f"objectTypes/{h}.json")
             is_text = ot["plugin-id"] == "Text"
             inst = {"type": h, "properties": {}, "uid": uid(), "sid": 910000000000000 + next_uid[0],
                     "tags": "", "instanceVariables": {}, "behaviors": {}, "showing": True, "locked": False,
-                    "world": {"x": 20, "y": 60, "width": 100, "height": 24, "originX": 0, "originY": 0,
+                    "world": {"x": -2000, "y": -2000, "width": 100, "height": 24, "originX": 0, "originY": 0,
                               "color": [1, 1, 1, 1], "z": 0, "angle": 0}}
             if is_text:
                 inst["properties"] = {"text": "", "enable-bbcode": True, "font": "Arial", "size": 14,
@@ -467,16 +471,29 @@ def main():
         ui["instances"].append(inst)
         print(f"[instance] {h} on {UI_LAYER}")
 
+    # HUD belongs on the screen-fixed UI layer, not the scrolling world layer
+    for layer in layout["layers"]:
+        kept = []
+        for inst in layer["instances"]:
+            if inst["type"] == "HUD" and layer["name"] != UI_LAYER:
+                ui["instances"].append(inst)
+                print("[instance] HUD moved to UI layer")
+            else:
+                kept.append(inst)
+        layer["instances"] = kept
+
     # ---- 8. deploy ported units on the battlefield ------------------------------
-    UNITS = [("TroopsFreindly", 300, 560), ("TroopsFreindly", 340, 600), ("TroopsFreindly", 300, 640),
-             ("GruntTroopsFreindly", 400, 560), ("GruntTroopsFreindly", 440, 600),
-             ("LightTank", 380, 660), ("spr_hero_tank", 470, 640),
+    UNITS = [("TroopsFreindly", 700, 1050), ("TroopsFreindly", 800, 1130), ("TroopsFreindly", 700, 1210),
+             ("GruntTroopsFreindly", 900, 1040), ("GruntTroopsFreindly", 1000, 1140),
+             ("LightTank", 880, 1280), ("spr_hero_tank", 1080, 1250),
              # phase 2: your base, production, and territory
-             ("OurFort", 120, 420),
-             ("RobotFactory", 250, 380),
-             ("Flag", 640, 200), ("Flag", 640, 560),
+             ("OurFort", 300, 1150),
+             ("RobotFactory", 520, 820),
+             ("Flag", 1280, 400), ("Flag", 1280, 1100),
              # enemy presence for capture/AI systems
-             ("TroopsEnemy", 950, 340), ("TroopsEnemy", 1000, 380), ("HeadBot", 1040, 320)]
+             ("TroopsEnemy", 1950, 620), ("TroopsEnemy", 2080, 700), ("HeadBot", 2170, 580),
+             # camera rig: their scroll/zoom/pan code drives this instance
+             ("Camera", 800, 1100)]
     src_unit_inst = {}
     for lp in sorted((SRC / "layouts").glob("*.json")):
         if lp.name.endswith(".uistate.json"):
@@ -537,6 +554,11 @@ def main():
             for k in [k for k in (inst.get("effects") or {}) if k not in fx_ok]:
                 del inst["effects"][k]
                 pruned_fx += 1
+            # saved effect states (red tint, warp ripple, ...) are driven by
+            # source groups we haven't ported — start them all disabled
+            for fx in (inst.get("effects") or {}).values():
+                if isinstance(fx, dict):
+                    fx["isEnabled"] = False
             # replica links point at template instances that live in source
             # layouts we didn't port — sever them
             if "template" in inst:

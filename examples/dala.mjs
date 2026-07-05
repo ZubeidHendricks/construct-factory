@@ -15,7 +15,7 @@ import { packC3p } from "@construct-factory/c3-format";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const TILE = 32;
-const COLS = 40, ROWS = 23; // 1280 x 736
+const COLS = 80, ROWS = 45; // 2560 x 1440 — room for the source game's ~150px units
 
 const g = Game.create({ rootDir: path.join(ROOT, "games"), name: "DALA", viewportWidth: 1280, viewportHeight: 736 });
 g.addLayout({ name: "District Six", width: COLS * TILE, height: ROWS * TILE, makeFirst: true });
@@ -32,140 +32,36 @@ const ground = Array.from({ length: ROWS }, (_, r) =>
   Array.from({ length: COLS }, (_, c) => ((r * 7 + c * 13) % 11 === 0 ? 2 : 1)));
 g.placeTilemap({ layout: "District Six", object: "Ground", grid: ground, tileWidth: TILE, tileHeight: TILE });
 
-// rocks: clusters that make pathfinding matter
+// rocks: clusters that make pathfinding matter (sized for ~150px units)
 const rocks = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
 const cluster = (r0, c0, cells) => { for (const [dr, dc] of cells) rocks[r0 + dr][c0 + dc] = 1; };
-cluster(4, 12, [[0,0],[0,1],[1,0],[1,1],[2,1],[2,2]]);
-cluster(10, 18, [[0,0],[0,1],[0,2],[1,1],[1,2],[2,2],[2,3]]);
-cluster(16, 10, [[0,0],[1,0],[1,1],[2,0]]);
-cluster(6, 27, [[0,0],[0,1],[1,0],[1,1],[2,0]]);
-cluster(15, 30, [[0,0],[0,1],[1,1],[1,2],[2,2]]);
+const blob = (r0, c0, h, w) => {
+  const cells = [];
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) if ((r + c) % 7 !== 6) cells.push([r, c]);
+  cluster(r0, c0, cells);
+};
+blob(8, 24, 4, 5);
+blob(20, 36, 5, 6);
+blob(32, 20, 3, 4);
+blob(12, 54, 4, 5);
+blob(30, 58, 5, 5);
+blob(22, 10, 3, 3);
 g.placeTilemap({ layout: "District Six", object: "Rocks", grid: rocks, tileWidth: TILE, tileHeight: TILE });
 
-// --- forces ------------------------------------------------------------------
-// Instance behavior property sets (shapes verified against a real RTS project)
-const pathfinding = (maxSpeed) => ({ properties: {
-  "cell-size": 30, "cell-border": -1, obstacles: "solids",
-  "max-speed": maxSpeed, acceleration: 1000, deceleration: 2000,
-  "rotate-speed": 15000, "rotate-object": false, diagonals: true,
-  "direct-movement": "anywhere-along-path", enabled: true } });
-const los = (range) => ({ properties: {
-  obstacles: "solids", range, "cone-of-view": 360, "use-collision-cells": true } });
-
-// DALA units (yours, gold) — Pathfinding + LOS, hp + selected state
-g.addSprite({ name: "Ranger", width: 24, height: 24, color: [232, 178, 60, 255],
-  behaviors: ["Pathfinding", "LOS"] });
-g.addInstanceVariable({ object: "Ranger", name: "hp", type: "number" });
-g.addInstanceVariable({ object: "Ranger", name: "selected", type: "boolean" });
-
-// enemy raiders (crimson) and their fort
-g.addSprite({ name: "Raider", width: 24, height: 24, color: [178, 58, 72, 255],
-  behaviors: ["Pathfinding", "LOS"] });
-g.addInstanceVariable({ object: "Raider", name: "hp", type: "number" });
-g.addSprite({ name: "Fort", width: 64, height: 64, color: [120, 36, 48, 255], behaviors: ["LOS"] });
-g.addInstanceVariable({ object: "Fort", name: "hp", type: "number" });
-
+// --- HUD ----------------------------------------------------------------------
+// The gameplay systems (selection, orders, factories, rally, flag capture,
+// camera) are ported verbatim from the licensed RTS source by tools/port_rts.py.
+// This base project provides only the battlefield and the HUD.
 g.addText({ name: "HUD" });
+g.placeInstance({ layout: "District Six", object: "HUD", x: 10, y: 8, width: 720, height: 26 });
 
-// placement — rangers bottom-left, raiders guard the fort top-right
-const rangerAt = (x, y) => g.placeInstance({ layout: "District Six", object: "Ranger", x, y,
-  behaviors: { Pathfinding: pathfinding(140), LOS: los(280) } });
-const raiderAt = (x, y) => g.placeInstance({ layout: "District Six", object: "Raider", x, y,
-  behaviors: { Pathfinding: pathfinding(110), LOS: los(230) } });
-rangerAt(140, 560); rangerAt(200, 600); rangerAt(140, 640);
-raiderAt(980, 200); raiderAt(1060, 260); raiderAt(920, 280);
-g.placeInstance({ layout: "District Six", object: "Fort", x: 1100, y: 140, behaviors: { LOS: los(260) } });
-g.placeInstance({ layout: "District Six", object: "HUD", x: 10, y: 8, width: 620, height: 26 });
-
-// --- logic ---------------------------------------------------------------------
 const ES = "District Six events";
-g.addEventVariable({ eventSheet: ES, name: "Kills", initialValue: "0" });
-
-g.addEventGroup({ eventSheet: ES, title: "Setup" });
-g.addEvent({ eventSheet: ES, group: "Setup",
+g.addEventGroup({ eventSheet: ES, title: "DALA Setup" });
+g.addEvent({ eventSheet: ES, group: "DALA Setup",
   conditions: [{ id: "on-start-of-layout" }],
   actions: [
-    { id: "set-instvar-value", objectClass: "Ranger", parameters: { "instance-variable": "hp", value: "100" } },
-    { id: "set-instvar-value", objectClass: "Raider", parameters: { "instance-variable": "hp", value: "80" } },
-    { id: "set-instvar-value", objectClass: "Fort", parameters: { "instance-variable": "hp", value: "400" } },
-    { id: "set-text", objectClass: "HUD", parameters: { text: "\"DALA — District Six Showdown · drag-select your crew · right-click: move out · take the flags\"" } },
+    { id: "set-text", objectClass: "HUD", parameters: { text: "\"DALA \u2014 District Six Showdown \u00b7 drag-select your crew \u00b7 right-click: move out \u00b7 take the flags\"" } },
   ] });
-
-g.addEventGroup({ eventSheet: ES, title: "Selection and Orders" });
-g.addEvent({ eventSheet: ES, group: "Selection and Orders",
-  conditions: [{ id: "on-object-clicked", objectClass: "Mouse", parameters: { "mouse-button": "left", "click-type": "clicked", "object-clicked": "Ranger" } }],
-  actions: [{ id: "set-boolean-instvar", objectClass: "Ranger", parameters: { "instance-variable": "selected", value: "true" } }] });
-g.addEvent({ eventSheet: ES, group: "Selection and Orders",
-  conditions: [
-    { id: "on-click", objectClass: "Mouse", parameters: { "mouse-button": "right", "click-type": "clicked" } },
-    { id: "is-boolean-instance-variable-set", objectClass: "Ranger", parameters: { "instance-variable": "selected" } },
-  ],
-  actions: [{ id: "find-path", objectClass: "Ranger", behaviorType: "Pathfinding", parameters: { x: "Mouse.X", y: "Mouse.Y" } }] });
-g.addEvent({ eventSheet: ES, group: "Selection and Orders",
-  conditions: [{ id: "on-path-found", objectClass: "Ranger", behaviorType: "Pathfinding" }],
-  actions: [{ id: "move-along-path", objectClass: "Ranger", behaviorType: "Pathfinding" }] });
-
-g.addEventGroup({ eventSheet: ES, title: "Combat" });
-// rangers hit what they can see
-g.addEvent({ eventSheet: ES, group: "Combat",
-  conditions: [
-    { id: "every-x-seconds", parameters: { "interval-seconds": "0.5" } },
-    { id: "has-los-to-object", objectClass: "Ranger", behaviorType: "LOS", parameters: { object: "Raider", "image-point": "0" } },
-  ],
-  actions: [{ id: "add-to-instvar", objectClass: "Raider", parameters: { "instance-variable": "hp", value: "-6" } }] });
-g.addEvent({ eventSheet: ES, group: "Combat",
-  conditions: [
-    { id: "every-x-seconds", parameters: { "interval-seconds": "0.5" } },
-    { id: "has-los-to-object", objectClass: "Ranger", behaviorType: "LOS", parameters: { object: "Fort", "image-point": "0" } },
-  ],
-  actions: [{ id: "add-to-instvar", objectClass: "Fort", parameters: { "instance-variable": "hp", value: "-6" } }] });
-// raiders + fort hit back
-g.addEvent({ eventSheet: ES, group: "Combat",
-  conditions: [
-    { id: "every-x-seconds", parameters: { "interval-seconds": "0.6" } },
-    { id: "has-los-to-object", objectClass: "Raider", behaviorType: "LOS", parameters: { object: "Ranger", "image-point": "0" } },
-  ],
-  actions: [{ id: "add-to-instvar", objectClass: "Ranger", parameters: { "instance-variable": "hp", value: "-5" } }] });
-g.addEvent({ eventSheet: ES, group: "Combat",
-  conditions: [
-    { id: "every-x-seconds", parameters: { "interval-seconds": "0.8" } },
-    { id: "has-los-to-object", objectClass: "Fort", behaviorType: "LOS", parameters: { object: "Ranger", "image-point": "0" } },
-  ],
-  actions: [{ id: "add-to-instvar", objectClass: "Ranger", parameters: { "instance-variable": "hp", value: "-4" } }] });
-// deaths
-g.addEvent({ eventSheet: ES, group: "Combat",
-  conditions: [{ id: "compare-instance-variable", objectClass: "Raider", parameters: { "instance-variable": "hp", comparison: 3, value: "0" } }],
-  actions: [
-    { id: "destroy", objectClass: "Raider" },
-    { id: "add-to-eventvar", objectClass: "System", parameters: { variable: "Kills", value: "1" } },
-    { id: "set-text", objectClass: "HUD", parameters: { text: "\"Raiders down: \" & Kills" } },
-  ] });
-g.addEvent({ eventSheet: ES, group: "Combat",
-  conditions: [{ id: "compare-instance-variable", objectClass: "Ranger", parameters: { "instance-variable": "hp", comparison: 3, value: "0" } }],
-  actions: [{ id: "destroy", objectClass: "Ranger" }] });
-
-g.addEventGroup({ eventSheet: ES, title: "Enemy AI" });
-// raiders hunt the nearest ranger
-g.addEvent({ eventSheet: ES, group: "Enemy AI",
-  conditions: [
-    { id: "every-x-seconds", parameters: { "interval-seconds": "3" } },
-    { id: "pick-nearestfurthest", objectClass: "Ranger", parameters: { which: "nearest", x: "Raider.X", y: "Raider.Y" } },
-  ],
-  actions: [{ id: "find-path", objectClass: "Raider", behaviorType: "Pathfinding", parameters: { x: "Ranger.X", y: "Ranger.Y" } }] });
-g.addEvent({ eventSheet: ES, group: "Enemy AI",
-  conditions: [{ id: "on-path-found", objectClass: "Raider", behaviorType: "Pathfinding" }],
-  actions: [{ id: "move-along-path", objectClass: "Raider", behaviorType: "Pathfinding" }] });
-
-g.addEventGroup({ eventSheet: ES, title: "Win and Lose" });
-g.addEvent({ eventSheet: ES, group: "Win and Lose",
-  conditions: [{ id: "compare-instance-variable", objectClass: "Fort", parameters: { "instance-variable": "hp", comparison: 3, value: "0" } }],
-  actions: [
-    { id: "destroy", objectClass: "Fort" },
-    { id: "set-text", objectClass: "HUD", parameters: { text: "\"VICTORY — District Six stands tall. Raiders down: \" & Kills" } },
-  ] });
-g.addEvent({ eventSheet: ES, group: "Win and Lose",
-  conditions: [{ id: "compare-two-values", parameters: { "first-value": "Ranger.Count", comparison: 0, "second-value": "0" } }],
-  actions: [{ id: "set-text", objectClass: "HUD", parameters: { text: "\"DEFEAT — vasbyt, ons probeer weer\"" } }] });
 
 // --- save + pack -----------------------------------------------------------------
 const dir = await g.save();

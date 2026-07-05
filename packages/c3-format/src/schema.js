@@ -481,9 +481,10 @@ export function objectTypeTilemap({ name, ids, imageWidth, imageHeight, imageSpr
   };
 }
 
-// RLE-encode a row-major 2D grid of tile indices (0 = the transparent/empty
-// tile) into Construct's "5x123,143,4x0,..." format. Verified: token cell
-// count equals max-width*max-height in both reference projects.
+// RLE-encode a row-major 2D grid of tile values into Construct's
+// "5x123,143,4x0,..." format. Values are 1-BASED: 0 = empty cell, N draws
+// tileset tile N-1 (verified against a live preview render; token cell count
+// equals max-width*max-height in both reference projects).
 export function encodeTilemapData(grid) {
   const flat = grid.flat();
   const parts = [];
