@@ -55,6 +55,24 @@ g.placeTilemap({ layout: "District Six", object: "Boulders", grid: rocks, tileWi
 g.addText({ name: "HUD" });
 g.placeInstance({ layout: "District Six", object: "HUD", x: 10, y: 8, width: 720, height: 26 });
 
+// Stub destinations for the ported win/lose flow (go-to-layout-by-name):
+// each shows a message and click returns to the battlefield.
+for (const [name, msg] of [
+  ["LevelWin", '"VICTORY — District Six stands tall. Click to play again."'],
+  ["MainMenu", '"DALA — District Six Showdown. Click to deploy."'],
+]) {
+  g.addLayout({ name, width: 1280, height: 736 });
+  const t = `${name}Text`;
+  g.addText({ name: t });
+  g.placeInstance({ layout: name, object: t, x: 240, y: 320, width: 800, height: 60 });
+  g.addEvent({ eventSheet: `${name} events`,
+    conditions: [{ id: "on-start-of-layout" }],
+    actions: [{ id: "set-text", objectClass: t, parameters: { text: msg } }] });
+  g.addEvent({ eventSheet: `${name} events`,
+    conditions: [{ id: "on-any-click", objectClass: "Mouse" }],
+    actions: [{ id: "go-to-layout-by-name", objectClass: "System", parameters: { layout: '"District Six"' } }] });
+}
+
 const ES = "District Six events";
 g.addEventGroup({ eventSheet: ES, title: "DALA Setup" });
 g.addEvent({ eventSheet: ES, group: "DALA Setup",

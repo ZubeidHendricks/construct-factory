@@ -39,6 +39,8 @@ GROUPS = [
     # phase 3: combat feedback + a live opponent
     "HEALTHBARS",
     "TroopsEnemy AI 2.0 (Fixed, with aggression)",
+    # phase 4: stakes
+    "WIN Lose Conditions",
 ]
 FUNCTIONS = [
     "createCursorTarget", "LETSGO", "READY",
@@ -420,9 +422,19 @@ def main():
     def scan_sounds(events):
         for e in events:
             for x in e.get("actions", []):
-                if x.get("id") in ("play", "play-by-name"):
-                    expr = json.dumps(x.get("parameters", {}))
-                    wanted.update(re.findall(r'[\\\\"]+([a-z0-9_]+)[\\\\"]+', expr))
+                if not isinstance(x, dict):
+                    continue
+                # any Audio action can name project sound files
+                if x.get("objectClass") == "Audio" or "play" in (x.get("id") or ""):
+                    params = x.get("parameters")
+                    if isinstance(params, dict):
+                        for v in params.values():
+                            if not isinstance(v, str):
+                                continue
+                            # names appear either quoted inside expressions
+                            # ("Win Fanfare", choose("a","b")) or as the raw value
+                            wanted.update(q.lower() for q in re.findall(r'"([^"]+)"', v))
+                            wanted.add(v.lower())
             if e.get("children"):
                 scan_sounds(e["children"])
     for e in list(ported_fns.values()) + list(got_groups.values()):
