@@ -32,20 +32,19 @@ const ground = Array.from({ length: ROWS }, (_, r) =>
   Array.from({ length: COLS }, (_, c) => ((r * 7 + c * 13) % 11 === 0 ? 2 : 1)));
 g.placeTilemap({ layout: "District Six", object: "Ground", grid: ground, tileWidth: TILE, tileHeight: TILE });
 
-// rocks: clusters that make pathfinding matter (sized for ~150px units)
+// rock formations: solid clusters that read clearly as obstacles
 const rocks = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
-const cluster = (r0, c0, cells) => { for (const [dr, dc] of cells) rocks[r0 + dr][c0 + dc] = 1; };
-const blob = (r0, c0, h, w) => {
-  const cells = [];
-  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) if ((r + c) % 7 !== 6) cells.push([r, c]);
-  cluster(r0, c0, cells);
+const rockField = (r0, c0, h, w) => {
+  for (let r = r0; r < r0 + h && r < ROWS; r++)
+    for (let c = c0; c < c0 + w && c < COLS; c++) rocks[r][c] = 1;
 };
-blob(8, 24, 4, 5);
-blob(20, 36, 5, 6);
-blob(32, 20, 3, 4);
-blob(12, 54, 4, 5);
-blob(30, 58, 5, 5);
-blob(22, 10, 3, 3);
+rockField(9, 24, 4, 6);
+rockField(20, 34, 5, 7);
+rockField(31, 18, 4, 5);
+rockField(13, 52, 4, 6);
+rockField(29, 56, 5, 6);
+rockField(6, 44, 3, 5);
+rockField(37, 40, 4, 8);
 g.placeTilemap({ layout: "District Six", object: "Boulders", grid: rocks, tileWidth: TILE, tileHeight: TILE });
 
 // --- HUD ----------------------------------------------------------------------

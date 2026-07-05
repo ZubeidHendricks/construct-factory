@@ -481,12 +481,20 @@ export function objectTypeTilemap({ name, ids, imageWidth, imageHeight, imageSpr
   };
 }
 
-// RLE-encode a row-major 2D grid of tile values into Construct's
-// "5x123,143,4x0,..." format. Values are 1-BASED: 0 = empty cell, N draws
-// tileset tile N-1 (verified against a live preview render; token cell count
-// equals max-width*max-height in both reference projects).
+// RLE-encode a row-major 2D grid (grid[row][col]) of tile values into
+// Construct's "5x123,143,4x0,..." format. Values are 1-BASED: 0 = empty cell,
+// N draws tileset tile N-1.
+//
+// Construct traverses tile data COLUMN-MAJOR ("top-to-right" drawing mode:
+// top-to-bottom down a column, then the next column rightward) — verified by
+// live-preview render: a row-major-encoded solid square came out as separate
+// vertical strips. So we emit column-major: for each column, all rows.
 export function encodeTilemapData(grid) {
-  const flat = grid.flat();
+  const rows = grid.length;
+  const cols = grid[0]?.length ?? 0;
+  const flat = [];
+  for (let c = 0; c < cols; c++)
+    for (let r = 0; r < rows; r++) flat.push(grid[r][c]);
   const parts = [];
   let i = 0;
   while (i < flat.length) {
