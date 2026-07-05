@@ -68,6 +68,21 @@ jload = lambda p: json.loads(Path(p).read_text())
 jdump = lambda p, o: Path(p).write_text(json.dumps(o, indent="\t") + "\n")
 
 
+def _object_classes(event):
+    """All objectClass values used anywhere under an event node."""
+    out = set()
+    def walk(events):
+        for e in events:
+            for part in ("conditions", "actions"):
+                for x in e.get(part, []):
+                    if isinstance(x, dict) and x.get("objectClass"):
+                        out.add(x["objectClass"])
+            if e.get("children"):
+                walk(e["children"])
+    walk([event])
+    return out
+
+
 def find_ot(name):
     hits = list((SRC / "objectTypes").rglob(f"{name}.json"))
     if not hits:
@@ -118,10 +133,13 @@ def main():
     # ---- 2. object types + images --------------------------------------------
     img_entries = {n.lower(): n for n in names if n.lower().startswith("images\\")}
     def extract_images(ot_name):
+        # animation frames: images\name-anim-NNN.png ; single-image plugins
+        # (Particles, 9-patch, TiledBg, Tilemap): images\name.png
         prefix = f"images\\{ot_name.lower()}-"
+        exact = f"images\\{ot_name.lower()}.png"
         got = 0
         for low, real in img_entries.items():
-            if low.startswith(prefix):
+            if low.startswith(prefix) or low == exact:
                 data = zf.read(real)
                 fname = real.split("\\")[-1]
                 (DEST / "images" / fname).write_bytes(data)
@@ -139,7 +157,9 @@ def main():
         use_addon_like_src("plugin", ot["plugin-id"])
         for b in ot.get("behaviorTypes", []):
             use_addon_like_src("behavior", b["behaviorId"])
-        n_img = extract_images(name) if ot["plugin-id"] == "Sprite" else 0
+        for e in ot.get("effectTypes", []):
+            use_addon_like_src("effect", e["effectId"])
+        n_img = extract_images(name)
         n_frames = sum(len(a.get("frames", [])) for a in ot.get("animations", {}).get("items", []))
         if ot["plugin-id"] == "Sprite" and n_img < n_frames:
             print(f"  WARN {name}: {n_frames} frames but {n_img} images extracted")
@@ -214,6 +234,62 @@ def main():
             if extra not in ported_fns:
                 queue.append(extra)
 
+    # ---- 4.5 event-variable auto-closure ----------------------------------------
+    # Sheet-level variables (source has 264) referenced by ported code — via
+    # {"variable": name} params or expression tokens — must be defined too.
+    var_catalog = {}
+    def index_vars(events):
+        for e in events:
+            if e.get("eventType") == "variable":
+                var_catalog.setdefault(e["name"], e)
+            if e.get("children"):
+                index_vars(e["children"])
+    for sp in (SRC / "eventSheets").glob("*.json"):
+        if not sp.name.endswith(".uistate.json"):
+            try:
+                index_vars(jload(sp)["events"])
+            except Exception:
+                pass
+
+    var_token = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+    var_refs = set()
+    def scan_vars(events):
+        for e in events:
+            for part in ("conditions", "actions"):
+                for x in e.get(part, []):
+                    if not isinstance(x, dict):
+                        continue
+                    params = x.get("parameters")
+                    if isinstance(params, dict):
+                        v = params.get("variable")
+                        if isinstance(v, str):
+                            var_refs.add(v)
+                        for val in params.values():
+                            if isinstance(val, str):
+                                var_refs.update(var_token.findall(val))
+            if e.get("children"):
+                scan_vars(e["children"])
+    for e in list(ported_fns.values()) + list(got_groups.values()):
+        scan_vars([e])
+
+    # variables already defined inside the ported groups themselves don't need copying
+    have_vars = set()
+    def index_have(events):
+        for e in events:
+            if e.get("eventType") == "variable":
+                have_vars.add(e["name"])
+            if e.get("children"):
+                index_have(e["children"])
+    index_have(sheet["events"])
+    for e in list(ported_fns.values()) + list(got_groups.values()):
+        index_have([e])
+
+    new_vars = [var_catalog[v] for v in sorted(var_refs) if v in var_catalog and v not in have_vars]
+    for v in new_vars:
+        print(f"[variable] {v['name']} ({v.get('type')}, init={v.get('initialValue')!r})")
+    # definitions go first so everything after can reference them
+    sheet["events"] = new_vars + sheet["events"]
+
     for fn in sorted(ported_fns):
         sheet["events"].append(ported_fns[fn])
         print(f"[function] {fn}")
@@ -221,24 +297,77 @@ def main():
         sheet["events"].append(got_groups[gtitle])
         print(f"[group] {gtitle} ({len(got_groups[gtitle].get('children', []))} events)")
 
-    # ---- 5. reference check: everything ported events touch must exist ---------
-    refs, missing = set(), set()
+    # ---- 5. object auto-closure: port everything the events actually touch ------
+    # References hide in three places: objectClass, "object"-style parameters,
+    # and expressions ("Spr_LightCone.X"). Match tokens against the full source
+    # catalog and auto-port whatever is missing (objects don't chain further:
+    # we don't port their event sheets).
+    src_ot_catalog = {}
+    for p in (SRC / "objectTypes").rglob("*.json"):
+        if not p.name.endswith(".uistate.json"):
+            src_ot_catalog[p.stem] = p
+    src_fam_catalog = {p.stem for p in (SRC / "families").glob("*.json")}
+
+    TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+    refs = set()
     def scan(events):
         for e in events:
             for part in ("conditions", "actions"):
                 for x in e.get(part, []):
+                    if not isinstance(x, dict):
+                        continue
                     if x.get("objectClass"):
                         refs.add(x["objectClass"])
+                    params = x.get("parameters")
+                    if isinstance(params, dict):
+                        for v in params.values():
+                            if isinstance(v, str):
+                                refs.update(TOKEN.findall(v))
             if e.get("children"):
                 scan(e["children"])
     for e in list(ported_fns.values()) + list(got_groups.values()):
         scan([e])
+
+    def port_object(name):
+        ot = jload(src_ot_catalog[name])
+        if "singleglobal-inst" in ot:
+            ot["singleglobal-inst"]["uid"] = uid()
+        jdump(DEST / f"objectTypes/{name}.json", ot)
+        manifest["objectTypes"]["items"].append(name)
+        ported_types.add(name)
+        use_addon_like_src("plugin", ot["plugin-id"])
+        for b in ot.get("behaviorTypes", []):
+            use_addon_like_src("behavior", b["behaviorId"])
+        for ef in ot.get("effectTypes", []):
+            use_addon_like_src("effect", ef["effectId"])
+        n_img = extract_images(name)
+        print(f"[auto-closure] objectType {name} (+{n_img} images)")
+
     for r in sorted(refs):
-        if r not in ported_types and r not in fam_names and r not in BUILTIN:
-            missing.add(r)
+        if r in ported_types or r in fam_names or r in BUILTIN:
+            continue
+        if r in src_ot_catalog:
+            port_object(r)
+        elif r in src_fam_catalog:
+            fam = jload(SRC / f"families/{r}.json")
+            fam["members"] = [m for m in fam.get("members", []) if m in ported_types]
+            for b in fam.get("behaviorTypes", []):
+                use_addon_like_src("behavior", b["behaviorId"])
+            for ef in fam.get("effectTypes", []):
+                use_addon_like_src("effect", ef["effectId"])
+            jdump(DEST / f"families/{r}.json", fam)
+            manifest["families"]["items"].append(r)
+            fam_names.add(r)
+            print(f"[auto-closure] family {r} ({len(fam['members'])} members)")
+        # tokens that match nothing are ordinary expression words — ignore
+
+    # hard check: every objectClass must now resolve
+    missing = {r for e in list(ported_fns.values()) + list(got_groups.values())
+               for r in _object_classes(e)
+               if r not in ported_types and r not in fam_names and r not in BUILTIN}
     if missing:
         sys.exit(f"FATAL: ported events reference missing objects: {sorted(missing)}")
-    print(f"[check] {len(refs)} objectClass refs all resolve")
+    print(f"[check] all objectClass refs resolve ({len(ported_types)} object types total)")
 
     # layer closure: any layer name quoted in ported events must exist
     layer_refs = set()
@@ -370,6 +499,50 @@ def main():
         inst["world"]["x"], inst["world"]["y"] = x, y
         main_layer["instances"].append(inst)
         print(f"[unit] {t} at ({x},{y})")
+
+    # ---- 9. prune orphan instance data ------------------------------------------
+    # Source instances carry variable values / behavior blocks from families we
+    # didn't port (e.g. EasyIsometricFamily's y_). The editor refuses to open a
+    # project whose instances reference undefined variables/behaviors, so trim
+    # every instance to what its type (+ ported families) actually defines.
+    fam_objs = []
+    for f in fam_names:
+        fp = DEST / f"families/{f}.json"
+        if fp.exists():
+            fam_objs.append(jload(fp))
+    def valid_sets(tname):
+        otp = DEST / f"objectTypes/{tname}.json"
+        if not otp.exists():
+            return set(), set(), set()
+        ot = jload(otp)
+        iv = {v["name"] for v in ot.get("instanceVariables", [])}
+        bh = {b["name"] for b in ot.get("behaviorTypes", [])}
+        fx = {e["name"] for e in ot.get("effectTypes", [])}
+        for f in fam_objs:
+            if tname in f.get("members", []):
+                iv |= {v["name"] for v in f.get("instanceVariables", [])}
+                bh |= {b["name"] for b in f.get("behaviorTypes", [])}
+                fx |= {e["name"] for e in f.get("effectTypes", [])}
+        return iv, bh, fx
+    pruned_iv = pruned_bh = pruned_fx = pruned_tpl = 0
+    for layer in layout["layers"]:
+        for inst in layer["instances"]:
+            iv_ok, bh_ok, fx_ok = valid_sets(inst["type"])
+            for k in [k for k in (inst.get("instanceVariables") or {}) if k not in iv_ok]:
+                del inst["instanceVariables"][k]
+                pruned_iv += 1
+            for k in [k for k in (inst.get("behaviors") or {}) if k not in bh_ok]:
+                del inst["behaviors"][k]
+                pruned_bh += 1
+            for k in [k for k in (inst.get("effects") or {}) if k not in fx_ok]:
+                del inst["effects"][k]
+                pruned_fx += 1
+            # replica links point at template instances that live in source
+            # layouts we didn't port — sever them
+            if "template" in inst:
+                del inst["template"]
+                pruned_tpl += 1
+    print(f"[prune] {pruned_iv} orphan instance vars, {pruned_bh} behaviors, {pruned_fx} effects, {pruned_tpl} template links removed")
 
     # ---- write everything -------------------------------------------------------
     (DEST / "families").mkdir(exist_ok=True)
