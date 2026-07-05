@@ -24,7 +24,7 @@ g.addGlobalPlugin("Mouse");
 // --- terrain: sand ground (walkable) + rock obstacles (solid) ---------------
 g.addTilemap({ name: "Ground", tileWidth: TILE, tileHeight: TILE,
   colors: [[203, 174, 128, 255], [190, 160, 114, 255]] }); // sand, darker sand
-g.addTilemap({ name: "Rocks", tileWidth: TILE, tileHeight: TILE,
+g.addTilemap({ name: "Boulders", tileWidth: TILE, tileHeight: TILE,
   colors: [[110, 104, 96, 255]], behaviors: ["solid"] });   // rock
 
 // ground: sand with scattered darker patches (deterministic scatter)
@@ -46,7 +46,7 @@ blob(32, 20, 3, 4);
 blob(12, 54, 4, 5);
 blob(30, 58, 5, 5);
 blob(22, 10, 3, 3);
-g.placeTilemap({ layout: "District Six", object: "Rocks", grid: rocks, tileWidth: TILE, tileHeight: TILE });
+g.placeTilemap({ layout: "District Six", object: "Boulders", grid: rocks, tileWidth: TILE, tileHeight: TILE });
 
 // --- HUD ----------------------------------------------------------------------
 // The gameplay systems (selection, orders, factories, rally, flag capture,

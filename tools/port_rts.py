@@ -36,6 +36,9 @@ GROUPS = [
     "FLAG CAPTURING SYSTEM V3 (FIXED By RIO) REWORKED",
     # camera: edge-scroll / zoom / pan (the map is bigger than the viewport)
     "CAMERA Scroll, Zoom, Pan (FIXED)",
+    # phase 3: combat feedback + a live opponent
+    "HEALTHBARS",
+    "TroopsEnemy AI 2.0 (Fixed, with aggression)",
 ]
 FUNCTIONS = [
     "createCursorTarget", "LETSGO", "READY",
@@ -370,6 +373,23 @@ def main():
     if missing:
         sys.exit(f"FATAL: ported events reference missing objects: {sorted(missing)}")
     print(f"[check] all objectClass refs resolve ({len(ported_types)} object types total)")
+
+    # family membership recompute: objects auto-ported AFTER a family was
+    # written never made it into that family's member list, so they lose the
+    # family's instance variables (e.g. TankGritty.MaxHealth via Enemies).
+    # Re-prune every ported family's SOURCE member list against the final set.
+    for f in sorted(fam_names):
+        fp = DEST / f"families/{f}.json"
+        sp_ = SRC / f"families/{f}.json"
+        if not fp.exists() or not sp_.exists():
+            continue
+        fam = jload(fp)
+        src_members = jload(sp_).get("members", [])
+        fresh = [m for m in src_members if m in ported_types]
+        if fresh != fam.get("members", []):
+            print(f"[family] {f}: members {len(fam.get('members', []))} -> {len(fresh)} after closure")
+            fam["members"] = fresh
+            jdump(fp, fam)
 
     # layer closure: any layer name quoted in ported events must exist
     layer_refs = set()
