@@ -41,6 +41,8 @@ GROUPS = [
     "TroopsEnemy AI 2.0 (Fixed, with aggression)",
     # phase 4: stakes
     "WIN Lose Conditions",
+    # phase 5: tactical overview
+    "Minimap",
 ]
 FUNCTIONS = [
     "createCursorTarget", "LETSGO", "READY",
