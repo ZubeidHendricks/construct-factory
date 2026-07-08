@@ -10,5 +10,6 @@ reference/pop/
 # purchased source (license forbids publishing) — never commit
 reference/nuke-them-all/
 
-# DALA incorporates licensed RTS code portions — local only, never publish
+# DALA incorporates licensed RTS code/art — local only, never publish
 games/dala/
+games/dala-play/

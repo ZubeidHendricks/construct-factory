@@ -401,7 +401,20 @@ export function objectTypeText({ name, ids }) {
 // Sprite object type. `frames` is an array of frame() objects (each already
 // linked to an emitted image via imageSpriteId). Shape verified against the
 // Kenney Pixel Platformer and Cave Bridge reference projects.
-export function objectTypeSprite({ name, ids, frames, animName = "Default", speed = 8, isLooping = false }) {
+export function objectTypeSprite({ name, ids, frames, animName = "Default", speed = 8, isLooping = false, animations }) {
+  // `animations` (optional) is an array of { name, frames, speed, isLooping }
+  // for multi-state sprites (idle/walk/attack/die). Falls back to a single
+  // animation built from `frames`/`animName` for the simple case.
+  const items = (animations ?? [{ name: animName, frames, speed, isLooping }]).map((a) => ({
+    frames: a.frames,
+    sid: ids.sid(),
+    name: a.name,
+    isLooping: a.isLooping ?? false,
+    isPingPong: false,
+    repeatCount: 1,
+    repeatTo: 0,
+    speed: a.speed ?? 8,
+  }));
   return {
     name,
     "plugin-id": "Sprite",
@@ -411,21 +424,7 @@ export function objectTypeSprite({ name, ids, frames, animName = "Default", spee
     instanceVariables: [],
     behaviorTypes: [],
     effectTypes: [],
-    animations: {
-      items: [
-        {
-          frames,
-          sid: ids.sid(),
-          name: animName,
-          isLooping,
-          isPingPong: false,
-          repeatCount: 1,
-          repeatTo: 0,
-          speed,
-        },
-      ],
-      subfolders: [],
-    },
+    animations: { items, subfolders: [] },
   };
 }
 

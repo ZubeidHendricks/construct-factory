@@ -92,23 +92,29 @@ export class Game {
    * @param {boolean} [o.isLooping]
    * @param {number} [o.originY=0.5]   1 = feet origin (platformers)
    */
-  addSprite({ name, width = 32, height = 32, behaviors = [], images = [], color, animName = "Default", speed = 8, isLooping = false, originY = 0.5 } = {}) {
+  addSprite({ name, width = 32, height = 32, behaviors = [], images = [], color, animName = "Default", speed = 8, isLooping = false, originY = 0.5, animations } = {}) {
     name = name ?? `Sprite${this.model.manifest.objectTypes.items.length + 1}`;
     this.useAddon("Sprite");
+    this.model.assets = this.model.assets ?? [];
 
-    const sources = images.length ? images : [null]; // at least one frame
-    const animSlug = slug(animName) || "default";
-    const frames = sources.map((imgPath, i) => {
-      const rel = `images/${slug(name)}-${animSlug}-${pad3(i)}.png`;
-      const data = imgPath ? readFileSync(imgPath) : c3.solidPng(width, height, color);
-      // real image files are the source of truth for frame dimensions
-      const size = imgPath ? c3.pngSize(data) : { width, height };
-      this.model.assets = this.model.assets ?? [];
-      this.model.assets.push({ rel, data });
-      return schema.frame({ width: size.width, height: size.height, imageSpriteId: this.ids.sid(), originY });
+    // Normalize to a list of animation specs. Single-anim callers pass
+    // images/animName; multi-state callers pass `animations: [{name, images,
+    // speed, isLooping}]`.
+    const specs = animations ?? [{ name: animName, images, speed, isLooping }];
+    const builtAnims = specs.map((a) => {
+      const sources = (a.images && a.images.length) ? a.images : [null];
+      const animSlug = slug(a.name) || "default";
+      const frames = sources.map((imgPath, i) => {
+        const rel = `images/${slug(name)}-${animSlug}-${pad3(i)}.png`;
+        const data = imgPath ? readFileSync(imgPath) : c3.solidPng(width, height, color ?? a.color);
+        const size = imgPath ? c3.pngSize(data) : { width, height };
+        this.model.assets.push({ rel, data });
+        return schema.frame({ width: size.width, height: size.height, imageSpriteId: this.ids.sid(), originY });
+      });
+      return { name: a.name, frames, speed: a.speed ?? 8, isLooping: a.isLooping ?? false };
     });
 
-    const ot = schema.objectTypeSprite({ name, ids: this.ids, frames, animName, speed, isLooping });
+    const ot = schema.objectTypeSprite({ name, ids: this.ids, animations: builtAnims });
     for (const b of behaviors) {
       this.useAddon(b);
       ot.behaviorTypes.push(schema.behaviorType({ behaviorId: b, name: b, ids: this.ids }));
