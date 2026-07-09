@@ -164,12 +164,23 @@ ev("Deaths", [C("compare-instance-variable", "Tank", { "instance-variable": "hp"
 ev("Deaths", [C("on-animation-finished", "Boom", { animation: '"expsmall"' })], [A("destroy", "Boom")]);
 
 g.addEventGroup({ eventSheet: ES, title: "Raider AI" });
-// raiders march on the player base (no per-instance picking — robust). They
-// clash with your units mid-map where LOS combat kicks in. Autonomous: the
-// battle unfolds with no input, then combat/deaths resolve it.
+// every raider (placed OR spawned) marches on the player base the moment it
+// exists — clashing mid-map where LOS combat kicks in.
+ev("Raider AI", [C("on-created", "Raider")],
+  [A("set-size", "Raider", { width: "66", height: "82" }),
+   A("set-instvar-value", "Raider", { "instance-variable": "hp", value: "60" }),
+   A("move-to-position", "Raider", { x: "340", y: "620", mode: "direct" }, "MoveTo"),
+   A("set-animation", "Raider", { animation: '"walk"', from: "beginning" })]);
+// initial placed raiders don't fire on-created — kick them off on start
 ev("Raider AI", [C("on-start-of-layout")],
   [A("move-to-position", "Raider", { x: "340", y: "620", mode: "direct" }, "MoveTo"),
    A("set-animation", "Raider", { animation: '"walk"', from: "beginning" })]);
+
+g.addEventGroup({ eventSheet: ES, title: "Reinforcements" });
+// the enemy fort keeps sending raiders — hold the line and push to destroy it
+ev("Reinforcements", [C("every-x-seconds", "System", { "interval-seconds": "6" })],
+  [A("create-object", "System", { "object-to-create": "Raider", layer: "0", x: "1080", y: "180", "create-hierarchy": false }),
+   A("create-object", "System", { "object-to-create": "Raider", layer: "0", x: "1160", y: "260", "create-hierarchy": false })]);
 
 g.addEventGroup({ eventSheet: ES, title: "Win Lose" });
 ev("Win Lose", [C("compare-instance-variable", "EnemyFort", { "instance-variable": "hp", comparison: 3, value: "0" })],
@@ -179,7 +190,7 @@ ev("Win Lose", [C("compare-two-values", "System", { "first-value": "Soldier.Coun
 
 // end screens — full-screen colored backdrop + centered readable text
 const bigText = (color) => ({
-  text: "", "enable-bbcode": true, font: "Arial", size: 40, "line-height": 0,
+  text: "", "enable-bbcode": true, font: "Arial", size: 32, "line-height": 6,
   bold: true, italic: false, color, "horizontal-alignment": "center",
   "vertical-alignment": "center", wrapping: "word", "text-direction": "ltr",
   "icon-set": -1, "initially-visible": true, origin: "top-left", "read-aloud": false,
@@ -194,7 +205,7 @@ for (const [name, msg, bg] of [
   g.placeInstance({ layout: name, object: bd, x: W / 2, y: H / 2, width: W, height: H });
   const t = `${name.replace(/\s/g, "")}Text`;
   g.addText({ name: t });
-  g.placeInstance({ layout: name, object: t, x: 140, y: 320, width: 1000, height: 100, properties: bigText([1, 1, 1, 1]) });
+  g.placeInstance({ layout: name, object: t, x: 190, y: 280, width: 900, height: 200, properties: bigText([1, 1, 1, 1]) });
   g.addEvent({ eventSheet: `${name} events`, conditions: [C("on-start-of-layout")], actions: [A("set-text", t, { text: msg })] });
   g.addEvent({ eventSheet: `${name} events`, conditions: [C("on-any-click", "Mouse")], actions: [A("go-to-layout-by-name", "System", { layout: '"Battle"' })] });
 }
